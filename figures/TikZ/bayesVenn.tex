@@ -1,0 +1,28 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{tikz}
+\usepackage[MnSymbol]{mathspec}
+\setmainfont{Myriad Pro}
+% set up colour blind friendly palette
+\definecolor{cbSkyblue}{RGB}{86,180,233}
+\definecolor{cbGreen}{RGB}{0,158,115}
+\definecolor{cbYellow}{RGB}{240,228,66}
+\definecolor{cbPurple}{RGB}{204,121,167}
+\definecolor{monokai}{RGB}{39,40,34}
+
+\begin{document}
+\begin{tikzpicture}
+
+\scope
+\clip (0,0) circle (1);
+\fill[cbGreen] (0,1) circle (1);
+\fill[fill=cbSkyblue,fill opacity=0.6] (0,0) circle (1);
+\endscope
+\fill[fill=cbYellow,fill opacity=0.6] (0,1) circle (1);
+
+%% outlines and labels
+\draw (0,0) circle (1) node [text=monokai,below] {B}
+      (0,1) circle (1) node [text=monokai,above] {A}
+      (0,0.5) node [text=monokai] {A $\cap$ B};
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,99 @@
+\documentclass{nicksclass}
+
+\includeonly{%Easy include/exclude of chapters
+abstract,%
+intro%
+,
+nestedSampling%
+,
+flowering%
+,
+discussion%
+}
+
+\begin{document}
+\DeclareFieldFormat[article,book,manual,inproceedings,incollection,thesis,online]{title}{\mkbibbold{#1}}% Bold titles in Bibliography
+\DeclareFieldFormat[article]{titlecase}{\MakeSentenceCase{#1}}
+\strictpagecheck% For ouside margins
+
+% Title page
+\thispagestyle{empty}
+\newgeometry{textheight=706pt, marginparsep=0pt, marginparwidth=0pt, textwidth=400pt, inner=98.753pt}%So inner = outer ergo text can be centred on page
+\myTitlePage
+\restoregeometry
+\thispagestyle{empty}
+
+% Abstract
+\cleardoublepage
+\thispagestyle{empty}
+\phantomsection% Needed for hyperref to link correctly
+\addcontentsline{toc}{chapter}{Abstract}
+\chapter*{Abstract}
+\input{abstract}
+\thispagestyle{empty}
+% only clearpage gets rid of following header
+\clearpage
+\thispagestyle{empty}
+
+% ToC
+{\hsize 441pt
+\tableofcontents
+\cleardoublepage}
+
+% My publications
+\phantomsection% Needed for hyperref to link correctly
+\addcontentsline{toc}{chapter}{List of publications}
+\chapter*{List of Publications}
+  This thesis includes material from the published works below.\newline
+  * Indicates that these authors contributed equally.
+
+\vspace{1cm}\noindent
+A. Bentley, E. Jensen, I. Mackay, H. Hönicka, M. Fladung, K. Hori, M. Yano, J. Mullet, I. Armstead, C. Hayes, D. Thorogood, A. Lovatt, R. Morris, N. Pullen, E. Mutasa-Göttgens, and J. Cockram. \textbf{Flowering Time}. In: \emph{Genomics and Breeding for Climate-Resilient Crops: Vol. 2 Target Traits} (2013), 1--66.
+
+\vspace{1cm}\noindent
+K. E. Jaeger*, N. Pullen*, S. Lamzin, R. J. Morris, and P. A. Wigge. \textbf{Interlocking feedback loops govern the dynamic behavior of the floral transition in \emph{Arabidopsis}}. \emph{The Plant Cell} 25.3 (2013), 820--833
+
+\vspace{1cm}\noindent
+N. Pullen, K. E. Jaeger, P. A. Wigge, and R. J. Morris. \textbf{Simple network motifs can capture key characteristics of the floral transition in \emph{Arabidopsis}}. \emph{Plant Signaling \& Behavior} 8.11 (2013), e26149.
+
+\vspace{1cm}\noindent
+N. Pullen and R. J. Morris. \textbf{Bayesian model comparison and parameter inference in systems biology using nested sampling}. \emph{PLoS ONE} 9.2 (2014), e88419.
+\thispagestyle{empty}
+
+% only clearpage gets rid of following header
+\clearpage
+\thispagestyle{empty}
+\chapter*{Acknowledgements}
+\chaptermark{Acknowledgements}% So correct name appears in header
+\addcontentsline{toc}{chapter}{Acknowledgements}
+\input{acknowledgements}
+
+% Main text
+\include{intro}
+\include{nestedSampling}
+\include{flowering}
+\include{discussion}
+
+% Bibliography - make wider so uses fewer pages in end
+% and set ragged as its fairly discontinuous
+\thispagestyle{empty}
+\cleardoublepage
+\newgeometry{textheight=686pt, marginparsep=0pt, marginparwidth=0pt, inner=40mm, outer=15mm, headsep=40pt, headheight=20pt}
+\setlength{\topmargin}{-36pt}
+\raggedright
+\pagestyle{biblio}
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Bibliography}
+\printbibliography%
+
+% Colophon
+\restoregeometry% back to easy to read textwidth
+\thispagestyle{empty}
+\chapter*{Colophon}
+\flushboth% back to full justification
+\input{colophon}
+\phantomsection
+\addcontentsline{toc}{chapter}{Colophon}
+
+\end{document}

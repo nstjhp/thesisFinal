@@ -1,0 +1,165 @@
+\chapter{Discussion \emph{\&} Conclusions}
+\label{chapter:discussion}
+
+\section{Modelling summary}
+Mathematical modelling is becoming an increasingly popular tool within the field of systems biology.
+Numerous modelling approaches are used in practice, ranging from machine learning of networks to partial differential equations (PDEs) on complex geometries.
+With a precise mathematical description of a problem, its solution can lead to unexplored research avenues or solve unexplained puzzles.
+In combination with experimentalists, iterative model building and biological verification or falsification can give greater knowledge about the system under study.
+Therefore as a function of increasing data, and by asking the right questions, scientific understanding can be increased through this interdisciplinary approach.
+
+To this end, there has been some previous computational modelling of varying aspects of flowering time and flower development.
+For instance Espinosa-Soto et al.\ and van Mourik et al.\ took different approaches to build models that describe the regulation of floral organ specification~\cite{espinosa2004,vanmourik2010}, while Prusinkiewicz et al.\ considered how differences in floral architecture may arise~\cite{prusinkiewicz2007}.
+However there have been few mathematical descriptions that have focused on the dynamics of the floral transition.
+
+In \autoref{chapter:flowering} a reductionist approach was taken that enabled us to suggest clear experiments whilst not being overburdened by aiming for an all-encompassing model.
+A simplifying step of grouping genes with common or redundant function into regulatory hubs was taken.
+The effect of the various regulatory pathways that govern the floral transition was approximated by assuming they converge on the FT hub.
+Simplified models inevitably miss finer details of the biological system, yet they provide a tractable route to understanding the overall system behaviour.
+Though with this slight abstraction direct molecular relevance is lost, we stand to gain in terms of qualitative predictions that can be tested experimentally.
+To begin modelling a pathway, looking for the basic properties of simple networks that exhibit the desired behaviour is a good first step.
+A simple three node system, as initially considered in \autoref{sec:simpleNets}, can give intuitive understanding to many transcriptional or developmental networks, not just the floral transition.
+Starting from known components, the value of such a bottom-up approach lies in the simplicity and ease of computation, as modelling more complicated networks can require extensive computer simulations to illuminate their features.
+As with all simplifications, our network inevitably cannot account for the full spectrum of interacting pathways and variables seen in nature, but an experimental-modelling cycle can stimulate interesting questions that might otherwise be missed without modelling.
+
+The models were made quantitative by scaling them to available leaf number data for a number of mutant genotypes.
+It was shown that a linear model is not sufficient to capture the variation in leaf numbers for the data set we had.
+The need for increased flexibility gave rise to a fairly simple network of core flowering time hubs that is able to capture important characteristics of the floral transition due to incorporated network motifs.
+Although the degree to which this behaviour manifests itself is parameter dependent, at a qualitative level this model is in agreement with many experimental observations.
+An intriguing feature of an extended network presented was that, for some parameter values, initial levels of LFY and TFL1 seem to control the determinacy of the cell for long developmental times.
+Thus this provides a hint on spatial patterning of the SAM.
+The type of model developed here is extensible in many directions and can provide increased power to scientists looking to develop yet deeper understanding of a crucial aspect of plant development.
+
+\section{Statistical summary}
+In this thesis Bayesian inference was used as the statistical framework of choice.
+Bayesian statistics allows one to place probability distributions on the elements that have some uncertainty attached to them, an obvious example being parameters.
+Typically, biological parameters such as degradation rates or binding constants are unknown experimentally and hence need to be inferred from the data.
+By being upfront about the prior assumptions our choices can be challenged by those with different degrees of belief and by sampling the posterior distribution, predictions will be made that can give preference or not for a range of hypotheses.
+
+A modern algorithm for Bayesian inference is nested sampling, which has seen success particularly in astrophysics due to the popular MultiNest implementation~\cite{feroz2009multinest}.
+Nested sampling targets the important component for Bayesian model comparison by calculating the evidence --- the posterior normalisation constant.
+In general this is a great challenge due to the need for evaluating this high-dimensional integral that arises through marginalising the likelihood over the prior.
+Not only can nested sampling effectively evaluate this term it also produce samples from the posterior distribution concurrently.
+In \autoref{chapter:nestedSampling} two major challenges in systems biology --- parameter inference and model comparison --- were addressed by the use of nested sampling.
+The summary statistics of parameters inferred by nested sampling were very similar to those calculated by MCMC, the go-to method for Bayesian computation.
+For a low dimensional example with experimental data where the evidence could be calculated by brute-force integration on a fine grid there was also good agreement between nested sampling and the numerical result.
+It was also shown how sampling from the posterior distribution can enable the reverse-engineering of the dynamics of the repressilator system despite little data.
+
+Given noisy and sparse data a potential difficulty for the judicious modeller is the fair comparison of competing models.
+A set of four biological oscillators were compared with a limited data set from one variable.
+It was found that despite data being generated from the repressilator, the evidence gave preference to a different model.
+This also held true for published experimental data from the bacterial system, and with synthetic noiseless data up until a very high resolution timecourse was available.
+However when data was taken from two system variables, despite being few, the data were able to give a Bayes factor in preference of the known model.
+This has to be considered important for future experimental design.
+
+The models for the floral transition in \autoref{chapter:flowering} also benefited from the Bayesian method.
+In particular, despite the much better fit to the data with more parameters, the models avoided the curse of overfitting as even a model with 23 parameters was very strongly favoured over a linear model with five parameters.
+For the leaf number data set available the model that best explained the data in a parsimonious way was able to fit accurately to these data and to qualitatively reproduce known properties of the floral transition.
+Model parameters were analysed by taking account of their marginal distribution or pairwise joint distributions.
+This analysis revealed a unimodal nature of the posterior parameter distribution and that there were some correlations between certain parameters.
+The probability density of some parameters was very high relative to others indicating that they are the most important for the model fit and thus tightly constrained by the data.
+
+From the questions posed in this thesis it seems that nested sampling can blossom in the areas of computational and systems biology.
+This notwithstanding, there are a few other modern approaches for model comparison using MCMC such as annealed important sampling and thermodynamic integration~\cite{murray2007, calderhead2009, lartillot2006, vyshemirsky2008} that were not investigated here.
+These approaches for statistics examples are reviewed by Friel \& Wyse~\cite{friel2012}.
+For the problems herein considered nested sampling was shown to be accurate and, with the MultiNest implementation, it is an efficient algorithm, its core cost being in the computation of the log-likelihood function.
+It may not work as well as other techniques for certain situations but only time will tell as it gains popularity outside the physics community.
+
+In summary, the use of Bayesian statistics through nested sampling allowed us fully quantify our uncertainty, compare models and infer parameters.
+Hence as more data and knowledge become available they can be used to update the models and refine our posterior inferences.
+
+\section{Outlook}
+\subsection{Temporal and spatial specificity}
+
+Gene network diagrams are qualitative in nature and do not give any idea of time or space, thus missing potentially interesting dynamics.
+Hence it is important for further work in Arabidopsis to move away from the concept of a static GRN, whose structure does not vary with time.
+Although, as here, the dynamics of such networks can be studied, it is important to recognise that the network structures themselves can be dynamic and vary over time.
+Simulating these dynamic networks will propose new theories and suggest new experiments that can lead to increased understanding of physiological networks.
+
+Moreover, there should be a move towards simulating these dynamic networks in varying spatial domains.
+For example, the final model in \autoref{chapter:flowering} provides a clue for future investigations into spatial patterning of the apex.
+However to prove or disprove the hypothesis requires a more advanced PDE approach where interacting proteins may function differently depending on their spatial localisation.
+Given the detailed molecular knowledge that continues to be discovered in model species it should be possible for future work in Arabidopsis to consider spatial and temporal specificity in more detail.
+
+AP1 is a prime candidate in this regard.
+It was used as the output for our models so that levels of this protein could be mapped to different states, that is vegetative growth, bolting or flower production.
+Yet at a particular timepoint in primordium cells AP1 also represses certain flowering genes.
+It has been shown that \emph{FD} is repressed in early floral primordium, around stage 2, the time when \emph{AP1} expression is detected~\cite{wigge2005}.
+Thus, post-commitment, AP1 can be a repressor of meristem fate and later has other roles like activating genes required for floral morphogenesis~\cite{kaufmann2010}.
+Additionally, in the centre of the flowers A class \emph{AP1} is repressed by C class \emph{AGAMOUS}~\cite{gustafson1994}.
+
+These results suggest manifold roles for a major floral gene that depend on developmental time and spatial localisation within the apex or establishing flower.
+In Arabidopsis there is detailed knowledge about these specificities, yet such details can not be captured in a single rigid representation of a genetic network.
+Henceforth mathematical modelling of this growing plant system should include both time and space dimensions.
+
+\subsection{Outside of Arabidopsis}
+
+In crops and other species, where there is not the detailed genetic knowledge available as in Arabidopsis, modelling GRNs can still have a great impact, thus outside of Arabidopsis the picture is rosy.
+The modelling of flowering time in horticultural and agricultural crops generally takes a QTL and/or linear modelling approach.
+This is successful but misses much of the underlying biology.
+The incorporation of GRNs is little used in predictive crop scheduling or plant breeding.
+Yet in the era of genome-wide transcription factor binding maps and large-scale datasets, it is particularly timely to develop such approaches for other species.
+Orthologues of key genes considered herein such as \emph{FT} and \emph{TFL1} have been found in many species, for example tomato, wheat, barley, rose, apple and rice~\cite{shalit2009, yan2006, randoux2013, mimida2009, tamaki2007}.
+
+In a number of polyploid species multiple copies of orthologous Arabidopsis genes occur.
+Therefore from a modelling viewpoint it may be possible to take a reductionist approach by grouping these genes into modules until the exact function of each copy is determined biologically.
+Simplifying the network to key hubs has the advantage of making it potentially easier to identify the critical network interactions that account for the major behaviours of a system.
+This can be used to further enhance the power of QTL-type approaches.
+
+Additionally growing plants in their natural outside environment, and the effect this has on them, is far more relevant agriculturally than in stable laboratory conditions.
+How can this be tackled mathematically?
+The input to the models in \autoref{chapter:flowering} is just FT levels.
+If it was known how environmental factors affected FT this could lead to the ability to predict the result in terms of leaf numbers and therefore developmental time, for many genotypes.
+Initially advanced growth chambers could be used that mimic outside conditions of light, temperature, rainfall and other components.
+Expression levels of \emph{FT} could be recorded and correlated with these external influences and the resulting flowering time.
+The challenge is thus to characterise perturbations of the control variables such as temperature, CO\textsubscript{2} and water availability on the key inputs to the genetic networks and then to drive the change of these variables by climate models.
+This multiscale approach will lead to the linking of the phenotype-based work in crops with molecular level research.
+
+In many years' time plant breeders could benefit from knowing how predictions of a changing climate will affect the \emph{in silico} dynamics of a modelled genotype, and thus steer their breeding programs appropriately.
+Furthermore combining field recording of weather data and these ideas in important crop species could lead to live updating of computational models which will prove very helpful for farmers planning crop scheduling or harvesting at the optimal time.
+
+All models rely on a number of parameters.
+Parameter determination or estimation is thus a key step towards predictions.
+No matter which species is chosen, being able to validate a model is vital and this includes independently evaluating the parameters in separate trials, both geographically and across seasons.
+
+At a time when the changing climate is a hot topic the ability to build models for the regulation of developmental outcomes provides us with a means to test proposed genetic interaction networks and hence to understand which factors are affected most by environmental variability.
+Current crop models for predicting flowering time are highly valuable, however to fully exploit the wealth of genomic information that is becoming available these models need to bridge scales.
+Using gene network-based approaches should be able to calculate flowering time accurately as a function of different inputs, be they genotypic or environmental.
+This will lead to improvements for plant breeders and farmers as they look to feed the growing world population.
+
+\section{The project}
+
+\subsection{Evolution of the project}
+
+Compared with sitting on a tractor cultivating fields in the relatively halcyon days pre-PhD this project, perhaps like many, has been an maelstrom of frustration, confusion and disappointment.
+Yet despite setbacks it is worth recording aspects that led to where we stand today and from where we can see a bright outlook on the horizon.
+In the early days a previous model for the floral transition developed by Richard Morris was tested.
+Before settling on the reduced models of \autoref{chapter:flowering} many variants were tried, some wrong, some less wrong.
+For example initially it was considered that AP1 might activate \emph{TFL1} --- the reasoning being that both increase during the floral transition.
+Now it seems obvious that their distinct spatial expression domains can account for this observation.
+At the time, optimisation by simulated annealing was used to estimate the parameters of our flowering models.
+However, we knew there was a better way.
+
+This led to a side project that evolved into the results presented in \autoref{chapter:nestedSampling}.
+Richard Morris had serendipitously coded a version of nested sampling in Fortran.
+The task was now to investigate parameter inference and model comparison in the Bayesian setting accounting for full uncertainty.
+After learning to program in Fortran and improving the original code, early tests proved very promising on simple examples and artificial data sets.
+It was also used successfully by Antonio Scialdone (JIC) for early investigations into a starch degradation model~\cite{scialdone2013}.
+This gave us quite some confidence on the various applications and potential for using nested sampling more widely in systems biology modelling.
+It was actually after the initial submission of the paper describing our results that the MultiNest implementation~\cite{feroz2009multinest} was tested.
+As it was even faster, offered more features and was easy to use given the previous fortuitous exposure to Fortran everything was redone using MultiNest, which enabled clearer results to be presented.
+
+Nested sampling also allowed for a full re-analysis of the previous flowering time models.
+Hence the new results presented in \autoref{chapter:flowering} are a culmination of over three and a half years hard work that unite two disparate ideas into a complete story.
+
+\subsection{Continuation of the project}
+
+Our success with nested sampling has also led to further use in the Morris group.
+Lydia Rickett (JIC) has done extensive investigations into models of bacterial growth curves with a large experimental data set.
+This has applications in the plant pathogen field and to food researchers where currently optimisation methods are used for parameter searching and models are compared with classical techniques.
+We are developing an \texttt{R} package for use by microbiologists so that they can easily compare different models of microbial growth with the posterior samples giving an idea of the uncertainty attached.
+
+Finally Marc Jones (JIC) will hopefully enjoy a PhD on attempting to infer a flowering time network in oilseed rape (\emph{Brassica napus}).
+As an allopolyploid this is a significant challenge with multiple copies of orthologous Arabidopsis genes like \emph{FLC} and \emph{FT}.
+These different copies may exhibit sub-functionalisation and/or their effects may be different between cultivars particularly given the involvement of man for selection of the best lines in different continents.
+This work will hopefully build on the foundations laid by our Arabidopsis model in \autoref{chapter:flowering} to see if it can be extended to help understand how other species effect the floral transition.

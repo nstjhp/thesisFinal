@@ -1,0 +1,730 @@
+\chapter{Nested Sampling in Systems Biology}
+\label{chapter:nestedSampling}
+
+\section{Introduction}
+Nested sampling~\cite{Skilling2006, sivia2006} is a technique for Bayesian inference that prioritises calculation of the evidence~\cite{mackay2003}, the normalisation constant of the posterior distribution.
+This is an important quantity for Bayes factors, used in model comparison, but is challenging to calculate in general because it involves evaluating a multi-dimensional integral.
+Nested sampling focuses on calculating this integral and as a by-product of the algorithm's exploration of parameter space it can optionally produce samples from the posterior distribution.
+Thus it can also be used for parameter inference as is traditionally done in Bayesian computation by Markov chain Monte Carlo (MCMC) techniques.
+Importantly nested sampling has shown encouraging results and efficiency gains over other sampling techniques~\cite{mukherjee2006, murray2007, feroz2008} particularly in the areas of astrophysics and cosmology.
+Furthermore reviewing this literature revealed that a well developed and cited implementation of the nested sampling algorithm, called MultiNest~\cite{feroz2009multinest}, existed which had been applied to astronomical data sets.
+Problems in physics can be of high dimension, non-linear and multimodal which is also typical of a number of problems in modelling biological processes.
+However systems biology, or biological models in general, had received little exposure to nested sampling when this work was initialised~\cite{partay2010} although subsequently further articles have appeared which are relevant to the field~\cite{burkoff2012,aitken2013}.
+In this chapter we evaluate how well Skilling's nested sampling, and in particular MultiNest, works for system biology problems and non-linear biological models by comparing evidence values to those approximated using numerical integration and study the accuracy of parameter inferences by comparing results to those of the current workhorse of Bayesian inference, MCMC.
+It is demonstrated how nested sampling can be used to reverse-engineer a system's behaviour whilst accounting for the uncertainty in the results.
+Thereafter we present results that employ this approach with various oscillating biological models for sparse, noisy data that is typically available to a mathematical modeller.
+Finally our results with nested sampling indicate that the addition of data from extra variables of a system can deliver more information for model comparison than increasing the data from one variable, thus providing a basis for experimental design.
+
+\subsection{Nested sampling is a Monte Carlo technique constrained by the likelihood}
+Skilling~\cite{Skilling2006, sivia2006} showed that the evidence can be calculated by a change of variables that transforms the multi-dimensional integral $\mathcal Z = \int\mathcal L(\omega) \pi(\omega) \diffd \omega$ over parameter space into a one-dimensional integral over likelihood space, \autoref{fig:NSexplain}.
+Following Skilling~\cite{Skilling2006, sivia2006}, denote the elements of prior mass as $\mathrm{d} X = \pi(\omega)\mathrm{d} \omega$ then $X(\lambda)$ is the proportion of the prior with likelihood greater than $\lambda$ so that 
+\begin{equation}
+X(\lambda) = \int\limits_{\mathcal L(\omega) > \lambda} \hspace{-1em}\pi(\omega)\mathrm{d} \omega.
+\end{equation}
+The evidence can then be expressed as
+\begin{equation}\label{1Dint}
+\mathcal Z = \int_0^1 \mathcal L(X) \mathrm{d} X,
+\end{equation}
+where $\mathcal L(X(\lambda)) \equiv \lambda$.
+The basic algorithm proceeds as follows:
+\begin{enumerate}
+\item Sample the prior $n$ times to generate an active set of objects ${\omega_1,\ldots,\omega_n}$ and calculate each object's likelihood.
+\item Sort the objects based on likelihood.
+\item Withdraw the point with lowest likelihood ($\mathcal L^*$) from the active set, leaving $n-1$ active samples.
+\item Generate a new sample point from the prior subject to the likelihood constraint $\mathcal L(\omega) > \mathcal L^*$.
+\item Add the new sample $\omega_{\mathrm {new}}$ to the active set to return the set to $n$ objects.
+\item Repeat steps 2--5 until termination.
+\end{enumerate}
+\begin{figure*}[htbp]
+\includegraphics[width=\myfullwidth]{/home/nick/Dropbox/march2014/multinest4thesis/thesis-corrections-L-vs-Prior/ParamSpaceAndTransition.pdf}
+\caption{Samples from parameter space are mapped to likelihood-prior space to calculate the evidence.
+Numbers in the plots indicate the order in which a sample point was withdrawn from the active set of $n=10$ objects, and are coloured by a grouping according to likelihood values.
+Top: Parameter space is shown for a two parameter linear model example.
+Bottom: The corresponding points are shown indicating the volume of the prior still remaining when that point was removed.
+At each rejection the remaining prior mass is multiplied by a factor $\exp(-1/n)$.
+The aim of nested sampling is to calculate the area under the curve.
+The inset zooms in on the region just as the bulk of the evidence is to be accumulated.
+This occurs at small values of the prior after finding the regions of highest likelihood.
+Points labelled `A' are those left in the final active set at termination.
+}
+\label{fig:NSexplain}
+\end{figure*}
+\begin{figure*}[htbp]
+\includegraphics[width=\myfullwidth]{/home/nick/Dropbox/march2014/multinest4thesis/thesis-corrections-L-vs-Prior/contributionToZ-2.pdf}
+\caption{Nested sampling calculates the evidence as a sum of the likelihood weighted by the prior.
+The first five panels show points grouped by likelihood value and a percentage of how much each group contributes to the final evidence.
+The bulk of evidence is accumulated by the contribution from 17 sample points (lower left) in this example.
+The final panel shows that fewer than half the total samples make up 99.9\% of the integral, which is found in a small fraction of the prior.
+}
+\label{fig:contributionToZ}
+\end{figure*}
+So by focusing on the evidence rather than the posterior distribution, a, potentially, high-dimensional integral can be replaced by a sorting problem of the likelihood \cite{sivia2006}, although high-dimensional sampling around each point remains.
+With the generated samples, the integral \eqref{1Dint} can be approximated (see \autoref{fig:contributionToZ}) using basic quadrature as 
+\begin{equation}\label{Zsum}
+\mathcal Z \approx \sum_{k=1}^{N} h_k \mathcal L_k,
+\end{equation}
+where $h_k = X_{k-1} - X_{k}, (X_0 = 1)$ is the width between successive sample points and $N$ is the total number of samples i.e.~the number of objects discarded from the active set plus those remaining in the active set at termination.
+Alternatively a more accurate method such as the trapezium rule could be used for the integration although the error introduced beyond this is of a higher order than that from other aspects of the algorithm~\cite{Skilling2006}.
+
+The target of nested sampling is to calculate the area under the curve in likelihood-prior space as shown in the bottom of \autoref{fig:NSexplain}.
+For most examples, as this one, this area is all but zero until the high likelihood regions are found.
+These parts of parameter space are often only found in very small domains of the prior range --- notice in the top plot of \autoref{fig:NSexplain} how small the blue and orange regions are compared to the entire prior.
+As each point is removed from the active set its associated likelihood is multiplied by a prior width.
+This width is shrunk geometrically at each iteration because of the potentially huge range of prior-to-posterior collapse.
+In our examples this reduction is by $1$ part in $N$ on the log scale, corresponding therefore to each width being $\exp(1/n)$ smaller than the previous~\cite{Skilling2006, sivia2006}.
+
+\subsection{Posterior distribution and summary statistics}\label{sec:summaryStats}
+Each accepted sample point $\theta_k$, is assigned a weight, $h_k \mathcal L_k$, that corresponds to how much it contributed to the evidence.
+From these weights it is possible to estimate individual marginal and joint probability distributions for all parameters to examine their uncertainty, modality, correlations or other aspects.
+Code was written that produces a table of binned values for these estimated distributions from the posterior output of nested sampling in a suitable way for plotting.
+This code is freely available\sidenote{\emph{Accessible from \url{https://github.com/nstjhp}.}} and is made use of in figures in this thesis.
+
+Additionally estimating summary statistics of the posterior distribution is straightforward given the posterior output from nested sampling~\cite{Skilling2006, sivia2006}.
+By using the weights assigned to each point, as above, the mean $\mu$ and standard deviation $\sigma$ of a parameter $\theta$ from $N$ samples are calculated as
+\begin{align*}
+\mu_\theta = \sum_{k=1}^{N}  \frac{h_k \mathcal L_k}{\mathcal Z}
+\theta_k, &&
+\sigma_\theta = \left(\sum_{k=1}^{N} \frac{h_k \mathcal L_k}{\mathcal Z}
+  \theta_k^2 - \mu_\theta^2\right)^{1/2}.
+\end{align*}
+When using a normal distribution with fixed standard deviation, $\sigma$, as a likelihood function, choosing a larger value of $\sigma$ leads to greater evidence and larger variance of the inferred parameters in most cases.
+
+MCMC methods produce samples from parameter space that are equally weighted and hence can be used to gain an understanding of the underlying posterior distribution.
+This is also possible with nested sampling.
+Staircase sampling can be used to generate a number of equally-weighted posterior samples~\cite{sivia2006}, which is necessarily fewer than the number of nested sample points.
+This is implemented by default in MultiNest~\cite{feroz2009multinest} and we make use of this later on to explore the posterior dynamics of our biological systems.
+
+\subsection{MultiNest}
+MultiNest is a Fortran library implementing nested sampling developed by astrophysicists in Cambridge~\cite{feroz2008,feroz2009multinest}.
+The main challenge of nested sampling is step 4 in the algorithm above --- generating a new sample from the prior that must have a higher likelihood than the discarded sample.
+Building on pioneering work by Mukherjee et al.~\cite{mukherjee2006} MultiNest uses ellipsoidal rejection sampling to efficiently propose new samples.
+The trick is to enclose all live points in the active set by a group of ellipsoids, which are allowed to overlap.
+The new point is then sampled from within the volume of the enclosed ellipsoids, save for a user-chosen multiplicative factor that affects the efficiency, but also potentially a bias, in the algorithm.
+This (inverse) factor is chosen by the user from $(0,1]$ with higher values reducing the time the algorithm takes but potentially missing some prior volume with likelihoods greater than the current likelihood contour. 
+We chose the target efficiency to be 0.5 to err on the side of accurate evidence values rather than maximum efficiency.
+Multimodal posterior distributions can be sampled from effectively, as points falling into modes can be enclosed within their own ellipsoid.
+This allows for the calculation of separate ``local'' log-evidences for each posterior mode if required.
+We did not make use of this or other advanced features, like parallelisation, available in the MultiNest software in this thesis.
+The MultiNest algorithm was shown to solve toy problems with multimodal or high curvature posteriors of the type that occur in cosmological problems, and additionally for less challenging examples it was shown to be highly efficient and produce similar estimates to MCMC~\cite{feroz2009multinest}.
+Recent developments such as Importance Nested Sampling which uses an alternative summation of the evidence by including trial points that don't satisfy the likelihood constraint can calculate the evidence with even greater accuracy~\cite{feroz2013}.
+In summary, Multinest has been shown to be a fast and efficient library for nested sampling applications in cosmology and astroparticle physics (for many references read Feroz et al.~\cite{feroz2013}) which shares similar types of problems and posterior distributions with those in systems biology.
+Thus we used MultiNest for all nested sampling results in this thesis after a testing phase to establish the best control parameters.
+
+\section{Testing the accuracy of evidence calculation}
+An obviously important property of nested sampling to investigate is the accuracy of the method for realistic biological problems.
+A number of comparisons to analytic solutions are achieveable through clever choice of prior and likelihood function.
+These toy examples however do not reflect the use of nested sampling and Bayesian inference for complex problems.
+Typical scientific problems can demonstrate high dimensionality, non-linearities or other difficulties for inference methods.
+\begin{marginfigure}[-100pt]
+    \includegraphics[width=\marginparwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/tanh-FT-TFL1-plot/thesis-FT-TFL1.pdf}
+    \caption{Relative expression levels of two floral genes.
+      qPCR of the whole rosette in Arabidopsis upon the floral transition was performed by Katja Jaeger and expression of \emph{FT} and \emph{TFL1} quantified.
+      This figure has been redrawn from Figure 7 published by Jaeger et al.~\cite{jaeger2013}.
+  }
+  \label{fig:FT-TFL1-data}
+\end{marginfigure}
+Difficulties in testing arise when the true solution of a realistic problem is not known.
+In our case we test the accuracy of nested sampling on biological data where the true evidence can be approximated using numerical integration.
+We took expression data of the flowering time genes \emph{TFL1} and \emph{FT}, determined by quantitative polymerase chain reaction (qPCR), \autoref{fig:FT-TFL1-data}. 
+Three different models between the antagonistic genes \emph{TFL1} and \emph{FT} are investigated: a linear model, a quadratic or a sigmoidal relationship. 
+The number of parameters in these models are two, three and four respectively.
+The measurement errors are not known but modelled as a normal distribution with $\sigma = 0.5$ (data in arbitrary units).
+By keeping the dimensionality to four or below we can use brute-force integration to make a good approximation to the true value of the log-evidence.
+A small step-size of 0.01 was used across the uniform prior domains to calculate the numerical approximations given in \autoref{tab:brutelogZ}.
+\begin{margintable}
+  \begin{tabular}{cc}
+    \toprule
+    Model & $\log\mathcal Z$\\
+    \midrule
+    Linear & $-12.016$\\
+    Quadratic & $-17.329$\\
+    Sigmoidal & $-8.987$\\
+    \bottomrule
+  \end{tabular}
+  \caption{$\log\mathcal Z$ values calculated by numerical integration.
+    Brute-force numerical integration over the prior domain using a fine grid of step-size 0.01 was used to approximate the log-evidence for three relationship models between \emph{FT} and \emph{TFL1} using the data in \autoref{fig:FT-TFL1-data}.
+  }
+  \label{tab:brutelogZ}
+\end{margintable}
+
+We tested the accuracy of nested sampling against two main control parameters of the algorithm: the number of objects in the active set and the termination tolerance.
+
+\subsection{Termination criteria}\label{sec:termination}
+There is no rigorous termination criterion to suggest when we have accumulated the bulk of $\mathcal Z$~\cite{sivia2006}.
+This is because there may be a region of very high likelihood in a tiny volume of parameter space which is very hard to discover yet if found could dominate the evidence value.
+However whether such a region exists is impossible to know either \emph{a priori} or \emph{a posteriori} for many practical problems. 
+Skilling~\cite{Skilling2006} suggests three ways and importantly notes that when to stop is a matter of user judgement. 
+The easiest way is to stop the sampling after a pre-defined number of steps.
+This method however could either be inefficient due to sampling far more than is required, or inaccurate due to not sampling enough.
+In the materials applications of Partay~et al.~\cite{partay2010} and Burkoff~et al.~\cite{burkoff2012} they set their convergence criteria to reflect the nature of protein folding, based on the bounded nature of the energy, whereas Aitken \& Akman~\cite{aitken2013} compare log-weight ($\log h_k + \log\mathcal L_k$) values 50 iterations apart.
+The example code provided with the introduction of nested sampling~\cite{Skilling2006} uses a condition that continues sampling until the number of samples significantly exceeds (in fact doubles) the number of prior objects multiplied by the current value of the information, $H$.
+A similarly plausible criterion also discussed by Skilling is implemented in the MultiNest code~\cite{feroz2009multinest}.
+Termination is decided by approximating the remaining evidence that can be accumulated from the posterior.
+This amount can be estimated as $\Delta\mathcal Z_i = \mathcal L_{\max}X_i$, where $\mathcal L_{\max}$ is the maximum likelihood value of the active set and $X_i$ is the remaining prior volume~\cite{feroz2009multinest,feroz2013}.
+
+\begin{figure*}[htbp]
+\includegraphics[width=\myfullwidth]{/home/nick/Dropbox/march2014/multinest4thesis/PLOT-compare-to-brute-force/accuracy-vs-priorsize.pdf}
+\caption{The effect of tolerance and prior size on the accuracy of nested sampling.
+For four different tolerance levels, 0.01, 0.1, 0.5 and 1.0 (columns), the three different models for the qPCR data (rows) and different prior sizes, the evidence (thick coloured line) and its associated numerical error (ribbon) was calculated for the same random seed.
+An approximation to the true evidence value was made by brute force integration over the prior domain (dark line).
+The chosen tolerance levels did not affect the accuracy as intra-row each ribbon looks the same.
+Increasing prior size increases our confidence in the evidence estimates for all models with accuracy generally very good above 100 prior objects.
+The rate of convergence is $\mathcal{O}(n^{-1/2})$~\cite{skilling2009convergence,sivia2006}, $n$ being the total number of samples.
+}
+\label{fig:NSaccuracy}
+\end{figure*}
+We investigated how the use of different levels of tolerance affects the accuracy of log-evidence values for the three models mentioned above and a range of prior sizes, which is equivalent to the number of objects in the active set.
+As can be seen in \autoref{fig:NSaccuracy} the different tolerance values have little effect, particularly when compared to the far greater effect of the prior size.
+Why is this?
+The reason that the chosen tolerance values do not affect the accuracy of the evidence value is that the bulk of evidence is already accumulated by the time the algorithm nears termination.
+The usual dynamics of nested sampling's progression, as noted by Skilling~\cite{Skilling2006}, towards the posterior is that the likelihood increases faster than the widths decrease until the decreasing width starts to dominate the likelihood values.
+This can be because the highest likelihood regions have been found and the increase in likelihood is not so great anymore.
+It is at this transitioning stage that most of the evidence integral is accrued.
+Thus when we come to judge when to stop the procedure we have already calculated the bulk of the posterior and the higher precision of our chosen tolerances did not affect the evidence values as shown in \autoref{fig:NSaccuracy}.
+As Jeffreys' scale (\autoref{sec:Jscale}) suggests a differentiation between models, i.e.\ Bayes factor, based on half a point difference in evidence on the $\log_{10}$ scale to be safe we chose a tolerance of $0.5$ in the (natural) log-evidence calculation.
+This value agrees with that used in example problems from the literature~\cite{feroz2009multinest}.
+
+\subsection{Prior size}
+\begin{figure*}[p]
+\includegraphics[width=\myfullwidth]{/home/nick/Dropbox/march2014/multinest4thesis/PLOT-compare-to-brute-force/llh-calls.pdf}
+\caption{The effect of tolerance and prior size on the efficiency of nested sampling.
+For the four different tolerance levels and three different models for qPCR data, the total number of likelihood evaluations were compared to different prior sizes, for the same random seed.
+Increasing prior size increases the work done approximately linearly so that an active set of 10000 points takes roughly 10 times more function calls than 1000 points.
+Increasing the tolerance value reduces the number of function calls required, as expected.
+}
+\label{fig:llh-calls}
+\end{figure*}
+As we have seen, the larger the size of the active set the more confident nested sampling is in its evidence calculation.
+For the nested sampling algorithm a greater sampling density from the prior distribution will increase the chances of highly probable areas being explored. 
+In the study of protein folding~\cite{burkoff2012} a set of 20000 prior objects was used to provide a wide selection of conformations. 
+At the other end of the scale it has been shown that maintaining a set of 25 active points can produce accurate parameter mean and standard deviations that are relatively insensitive to the prior size~\cite{aitken2013}.
+The greater the prior size the longer the method takes to reach its stopping criterion.
+A robust way to measure efficiency across different active set sizes is to compare the total number of likelihood function evaluations.
+This negates any potential differences in computer architecture or CPU load.
+Additionally evaluating the likelihood function is often, in compute time, the most costly part of many inference schemes, particularly when a set of differential equations need to be solved or a simulation run for a given set of parameters.
+To choose an efficient yet accurate number of prior objects for future computations we compared six different prior sizes and the number of function calls for the three models as shown in \autoref{fig:llh-calls}.
+We see an approximately linear increase in the number of evaluations with increase in prior size, see for example the results for the quadratic model with a tolerance of 0.01 in \autoref{tab:obj-evals}.
+As is expected increasing the tolerance serves to decrease the number of function evaluations required.
+We would like to choose a value of the prior size that gives accurate evidence values, is efficient, yet effective, for our future models which will be of higher dimension.
+Taking into account both \autoref{fig:NSaccuracy} and \autoref{fig:llh-calls} it was decided that 1000 active points would be a sensible trade-off to give accurate estimates for reasonable computer effort.
+\begin{margintable}[-215pt]
+  \begin{tabular}{@{}ccc@{}}
+    \toprule
+    Objects & Calls & Ratio\\
+    \midrule
+    10 & 668 & 66.8\\
+    100 & 3844 & 38.44\\
+    500 & 18568 & 37.136\\
+    1000 & 38078 & 38.078\\
+    5000 & 184899 & 36.9798\\
+    10000 & 368564 & 36.8564\\
+    \bottomrule
+  \end{tabular}
+  \caption{Approximate linear increase in log-likelihood function calls with increasing number of prior samples.
+  }
+  \label{tab:obj-evals}
+\end{margintable}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{cccc}%results in /gpfs/bio/nyv06aju/2014/brute-force-comp
+    \toprule
+    & Linear & Quadratic & Sigmoidal\\
+    \midrule
+    $\log\mathcal Z$ & $-12.016$ & $-17.329$ & $-8.987$ \\
+    NS $\log\mathcal Z$ & $-11.97 \pm 0.08$ & $-17.11\pm 0.11$ & $-8.99\pm 0.06$\\
+    \bottomrule
+  \end{tabular}
+  \sidecaption[][-55pt]{Comparison of calculated log-evidence values.
+    The log-evidence calculated by brute-force numerical integration over the prior domain and the nested sampling (NS) estimate using 1000 prior samples and a tolerance of 0.5 for each of the three different models for the qPCR data.
+    \label{tab:bruteForceComp}
+    }
+\end{table}
+  
+It is interesting to note that the number of likelihood calls in nested sampling does not depend solely on dimension of the problem, here the number of model parameters.
+Skilling states that nested sampling itself ignores dimensionality~\cite{Skilling2006} which is instead a complication for the sampler within the constrained likelihood to handle.
+MultiNest was designed to work up to moderately high numbers of parameters~\cite{feroz2009multinest} and thus handles these test cases without issue.
+The reason that the quadratic, three parameter model takes longer to run is due to the information content.
+The information, which is a measure of prior-to-posterior collapse, for the three models was approximated by brute-force numerical integration to be: $H_{lin} = 6.96$; $H_{quad} = 11.85$; $H_{sig} = 3.57$.
+After data acquisition, $H$ is a natural logarithmic measure of the amount of information in the posterior relative to the prior~\cite{sivia2006}.
+The posterior, which therefore occupies approximately a fraction $e^{-H}$ of the prior~\cite{sivia2006}, will be located in a smaller domain of the prior for higher values of $H$, and thus is harder to find.
+This in turn leads to more samples being required to discover the posterior, explore it and calculate the evidence.
+%Hence to discover, and then explore, the quadratic model posterior takes more samples than both the linear or sigmoidal models because the majority of posterior mass is located in a fraction $e^{-H}$ of the prior, and this takes approximately $NH\pm\sqrt{NH}$ iterations to reach, $N$ being the size of the active set~\cite{Skilling2006}.
+
+\subsection{Posterior samples are chosen successively in higher probability regions}
+With the constraint upon the likelihood, the method moves up the likelihood gradient to regions of higher probability (even if these regions become disconnected in parameter space).
+This is demonstrated in \autoref{fig:migNoZoom}.
+As the algorithm moves through iterations there is a narrowing of the regions of higher probability as the worse samples are removed and better ones that satisfy the constraint on the likelihood survive.
+Thus the algorithm discovers the posterior distribution.
+With the points coloured by their log-likelihood value, \autoref{fig:mig}, we can see clearly how the active set of objects migrates to areas of highest likelihood.
+In this case all the objects left in the active set after stopping the algorithm are located in one small cigar-shaped region of parameter space.
+This is where the bulk of probability mass is located for this linear model and qPCR data.
+This region includes the maximum likelihood parameters shown by a yellow disc in the bottom right panel of \autoref{fig:mig}.
+If the procedure was run for even more samples, for example by reducing the tolerance level, the objects would continue to move up towards the peak of the posterior probability distribution, and cluster closer together, but as we saw in \autoref{sec:termination} this will have very little effect on our final evidence.
+
+The posterior parameter distribution allows for identification of areas where parameters can be either stiff or sloppy. 
+\autoref{fig:mig} conveys how in one direction the posterior distribution is wide (sloppy) whereas in the perpendicular direction it is well defined (stiff).
+This example demonstrates the point made by Erguler \& Stumpf~\cite{erguler2011} in their Figure 1.
+Disperse parameter sets are commonly found in systems biology problems yet can lead to useful predictions~\cite{gutenkunst2007, ashyraliyev2008}.
+Notwithstanding the technical difficulty of visualising multiple dimensions a multimodal posterior distribution can reveal the regions of parameter space that lead to high probability yet may be disconnected above a certain probability threshold.
+
+\begin{figure*}[!htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/march2014/multinest4thesis/migration/migration11-noZoom.pdf}
+  \caption{Nested sampling removes points that don't meet the likelihood constraint.
+    From an initial uniform prior parameter distribution (Prior), nested sampling selects points that are in regions of higher likelihood.
+    The sample sets are shown after every 1000 sampling iterations and then with the final active set (Posterior) after termination of the algorithm.
+    In this case the sampling ends up in a single region of high probability after sample points that don't satisfy the likelihood constraint are discarded.
+    The underlying model is the linear model for qPCR data and the samples are from the two parameters of the linear model, the slope and intercept terms.
+  }
+  \label{fig:migNoZoom}
+\end{figure*}
+\begin{figure*}[!htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/march2014/multinest4thesis/migration/migration11.pdf}
+  \caption{The migration of objects to higher likelihood regions.
+    As for \autoref{fig:migNoZoom} but now with log-likelihood values grouped into levels and coloured by these levels to show the migration to regions of high probability.
+    We zoom in on the active set of 1000 sample points --- notice the continual change of axes indicating a shrinking of the areas of highest probability.
+    Over half the prior samples have a log-likelihood worse than $-10000$ yet within 2000 sampling iterations all these samples have been replaced.
+    In the final sample set (Posterior) we indicate the location of the maximum likelihood sample point with a yellow disc.
+    The slope parameter has a narrower range of possible values compared with the intercept parameter, which means it is a stiffer parameter.
+    We also note the obvious correlation between the parameters.
+  }
+    \label{fig:mig}
+\end{figure*}
+
+\section{Results}
+
+\subsection{Nested sampling for parameter inference in systems biology}
+
+The current workhorse of Bayesian inference is MCMC which for a huge variety of problems will converge to the posterior distribution given enough time.
+The resulting posterior is only required to be proportional to the true posterior and thus calculation of the normalising constant, the evidence, can be a complicated task~\cite{mackay2003, Skilling2006}.
+However MCMC, or a variation, is routinely used for parameter inference as we get the full posterior distribution and thus are able to quantify our uncertainty which we are unable to do with optimisation techniques.
+As discussed nested sampling obtains posterior samples as a by-product of its evidence calculation and, as explained in \autoref{sec:summaryStats}, from these samples we are able to perform parameter inference.
+Naturally it is necessary to compare the results of nested sampling to the established technique for parameter inference, MCMC.
+Thus output from nested sampling was compared with that of MCMC for Bayesian inference of two test problems.
+
+In the first case, data were generated from the curve $y = 3\tanh\left(\frac{x}{2}\right)$ from $[-5,5]$ at intervals of 0.5 to give 21 data points.
+Noise from a standard Gaussian, $\mathcal N(0,1)$, was added to the generated data.
+As expected from this low dimensional problem both nested sampling and MCMC find similar solutions with identifiable parameters whose means are good summaries of their distributions given the level of noise, \autoref{fig:tanh-TFL1-FT} left.
+
+\begin{figure*}[!htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/tanh-FT-TFL1-plot/compare2MCMC-thesis.pdf}
+  \caption{Nested sampling produces equivalent estimates to MCMC.
+    (Left) Nested sampling (orange solid line) and MCMC (skyblue dashed) produce a similar estimate of the parameter means given noisy data (white diamonds) generated from $y = 3\tanh\left(\frac{x}{2}\right)$ (green line).
+    The solution using an optimised point estimate of the parameters from simulated annealing is shown as a black dotted line.
+    (Right) Using three different relationship models for flowering gene expression data, nested sampling, MCMC and simulated annealing produce near identical curves for a linear model of the experimental data (purple diamonds) and for a three parameter quadratic model, using the mean parameter values from the inference methods.
+    Curves are offset by one line width for clarity.    
+    For a four parameter sigmoidal model MCMC and nested sampling infer comparable parameter means (given in \autoref{tab:MCMC-NS}).
+    Note that some parameter sets from the posterior distributions follow a similar trajectory to the point estimate from simulated annealing.
+  }
+  \label{fig:tanh-TFL1-FT}
+\end{figure*}
+
+\begin{table*}[!htbp]
+  \centering
+  %\small
+  {\setlength{\tabcolsep}{0.4em}
+  \begin{tabular}{lccc@{\hspace{0.8em}}cccc@{\hspace{0.8em}}ccccc@{\hspace{0.8em}}ccccc}
+    \toprule
+    % & $\tanh$ && Linear && Quadratic &&& Sigmoid &&& \\
+    % & \multicolumn{2}{c}{Hyberbolic tangent} & \multicolumn{2}{c}{Linear} & \multicolumn{3}{c}{Quadratic} & \multicolumn{4}{c}{Sigmoid} \\
+    & \multicolumn{2}{c}{Hyp. tangent} &&& \multicolumn{2}{c}{Linear} &&& \multicolumn{3}{c}{Quadratic} &&& \multicolumn{4}{c}{Sigmoid} \\    
+    \cmidrule(lr){2-3} \cmidrule(lr){6-7} \cmidrule(lr){10-12} \cmidrule(lr){15-18}
+    & $\theta_1$ & $\theta_2$ &&& $m$ & $c$ &&& $\gamma$ & $\beta$ & $\alpha$ &&& $k_1$ & $k_2$ & $k_3$ & $k_4$ \\
+    \cmidrule(lr){2-2}\cmidrule(lr){3-3}\cmidrule(lr){6-6}\cmidrule(lr){7-7}\cmidrule(lr){10-10}\cmidrule(lr){11-11}\cmidrule(lr){12-12}\cmidrule(lr){15-15}\cmidrule(lr){16-16}\cmidrule(lr){17-17}\cmidrule(lr){18-18}
+%    NS & 5.05$\pm$1.84& 0.26$\pm$0.24 & 0.12$\pm$0.05 & 0.20$\pm$0.26 & 0.01$\pm$0.02 & 0.02$\pm$0.23 & 0.37$\pm$0.44 & 1.37$\pm$0.53 & 2.06$\pm$1.42 & 5.53$\pm$2.00 & 0.45$\pm$0.22 \\
+%    MCMC & 5.01$\pm$1.80& 0.27$\pm$0.32 & 0.12$\pm$0.05  & 0.22$\pm$0.27 & 0.01$\pm$0.02 & 0.02$\pm$0.23 & 0.38$\pm$0.43 & 1.39$\pm$0.55 & 2.09$\pm$1.42 & 5.68$\pm$1.98 & 0.46$\pm$0.23 \\
+    NS mean & 5.05 & 0.26 &&& 0.12 & 0.20 &&& 0.01 & 0.02 & 0.37 &&& 1.37 & 2.06 & 5.53 & 0.45 \\
+    MCMC mean & 5.01 & 0.27 &&& 0.12 & 0.22 &&& 0.01 & 0.02 & 0.38 &&& 1.39 & 2.09 & 5.68 & 0.46 \\    
+    SA & 4.36 & 0.24 &&& 0.12 & 0.22 &&& 0.01 & 0.02 & 0.38 &&& 1.21 & 5.00 & 5.57 & 0.44 \\
+    \cmidrule{2-18}
+    NS SD & 1.84 & 0.24 &&& 0.05 & 0.26 &&& 0.02 & 0.23 & 0.44 &&& 0.53 & 1.42 & 2.00 & 0.22 \\
+    MCMC SD & 1.80 & 0.32 &&& 0.05 & 0.27 &&& 0.02 & 0.23 & 0.43 &&& 0.55 & 1.42 & 1.98 & 0.23 \\
+    \bottomrule
+  \end{tabular}}
+ % \normalsize
+    \caption{Comparison of parameter means and standard deviations.
+    The mean and standard deviation (SD) values of the parameters from nested sampling (NS), MCMC and the point estimates from simulated annealing (SA).
+    The data came from $y = 3\tanh\left(\frac{x}{2}\right)$ with additional noise and from \autoref{fig:FT-TFL1-data} to which we fit three models:
+    Linear $y=mx+c$; Quadratic $y = \gamma x^2 + \beta x + \alpha$; Sigmoid $y = k_4 + (k_1-k_4)/(1+\exp(-k_2(x-k_3)))$.
+  }
+  \label{tab:MCMC-NS}
+\end{table*}
+
+In the second example, our data was the previously discussed qPCR expression levels of the flowering time genes \emph{TFL1} and \emph{FT} (\autoref{fig:FT-TFL1-data}).
+As before three different models between the antagonistic genes \emph{TFL1} and \emph{FT} are investigated: a linear model, a quadratic or a sigmoidal relationship. 
+The measurement errors are not known but again modelled as a normal distribution with $\sigma = 0.5$ (data in arbitrary units) which was found to be consistent with estimated noise from the data.
+Also a simulated annealing algorithm~\cite{kirkpatrick1983,goffe1994} was used to optimise the parameters for a comparison with the means of our posterior parameter distributions.
+The fits to the data using the mean values for the three models are shown on the right in \autoref{fig:tanh-TFL1-FT}.
+All methods find a very similar solution for the linear model, and equally for the three parameter quadratic curve.
+For the four parameter sigmoid model $y = k_4 + (k_1-k_4)/(1+\exp(-k_2(x-k_3)))$ the results are also comparable.
+The optimisation procedure fits the data well, with a steeper gradient than the inference methods, yet this does not imply it is better despite appearances.
+Instead this suggests that using the mean parameters are not representative of all posterior parameter sets from MCMC and nested sampling.
+A number of samples from the posterior distribution are also able to follow a similarly steep trajectory as the simulated annealing result but we decided to only show one curve to avoid complicating the plot further.
+Furthermore the maximum likelihood values were similar between nested sampling and simulated annealing for all three models.
+The means and standard deviations of the parameters from nested sampling and MCMC are in good agreement, \autoref{tab:MCMC-NS}.
+The log-evidences found are in \autoref{tab:bruteForceComp} which, on Jeffreys' scale, prefers the four parameter sigmoid model to explain this data set.
+
+The remarkable similarity of the parameter moments summarised in \autoref{tab:MCMC-NS} gives us confidence that nested sampling will produce parameter inferences that agree with MCMC.
+
+\subsection{The repressilator}
+
+The repressilator~\cite{elowitz2000} is a frequently used system to evaluate parameter estimation developments~\cite{lillacci2010, quach2007, toni2009, vyshemirsky2008}.
+The repressilator is a synthetic network of transcriptional regulators comprising three genes in a feedback loop that is capable of producing oscillations.
+It is also the core structure of a recent circadian clock model~\cite{pokhilko2012}. 
+The governing equations used are as follows
+\begin{equation}
+\begin{cases}
+  \displaystyle
+  \frac{\mathrm{d}m_i}{\mathrm{d}t} = -m_i + \frac{\alpha}{1 + p_j^n} + \alpha_0\\
+  \displaystyle
+  \frac{\mathrm{d}p_i}{\mathrm{d}t} = -\beta\left(p_i - m_i\right)
+\end{cases}
+\label{rep-sys}
+\end{equation}
+where $i = \{lacI, tetR, cI\}$ and $j= \{cI, lacI, tetR\}$.
+$\alpha_0$ was set to 0 and $n=2$ so that our prior contained both stable and unstable domains~\cite{elowitz2000}.
+Initial conditions and parameters were chosen that produce oscillations in the synthetic data, \autoref{tab:rep-table}.
+To show the power of nested sampling for this example we use synthetic data from just one variable, $p_{cI}$ (cI protein), collected at two-minute intervals for 50 minutes.
+The data has Gaussian noise added to it with a standard deviation of 10\% of the range.
+It is assumed we do not know, or cannot measure, the initial conditions for the five other variables, and attempt to infer these too.
+Uniform priors were used for all parameters with $\alpha\sim U(0,1000), \beta\sim U(0,100)$ and the initial conditions are drawn from $U(0,50)$.
+We choose a constant value of $\sigma$ in our log-likelihood function that is equivalent to the amount of noise added.
+When standard deviations can be estimated from experimental data these values should be used in the error model if the noise distribution is unknown, or alternatively we could infer the standard deviation parameter.
+Either better quality (less noise) or greater quantity of data are both able to increase the accuracy of estimates of the parameter posterior probability distributions, as one would intuitively expect.
+
+\begin{table*}[!htbp]
+  \centering
+  \begin{tabular}{ccccccccc}
+    \toprule
+    & $\alpha$ & $\beta$ & $p_{lacI}$ & $p_{tetR}$ & $p_{cI}$ & $m_{lacI}$ & $m_{tetR}$ & $m_{cI}$ \\
+    \midrule
+    True & 125.00 & 2.00 & 5.00 & 0.00 & 15.00 & 0.00 & 0.00 & 0.00 \\
+    Estimated mean & 128.47 & 2.02 & 33.38 & 15.34 & - & 7.21 & 2.66 & 43.21 \\
+    Estimated SD & 5.88 & 0.05 & 8.46 & 10.73 & - & 5.26 & 1.73 & 4.67 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Parameters and initial conditions of the repressilator model.
+    The values of the parameters $\alpha$, $\beta$ and initial conditions of the six variables used to generate the simulated data prior to addition of Gaussian noise, and the inferred means and standard deviations (SD) from the routine.
+    $p$: protein, $m$: mRNA\@.
+    The initial amount of cI protein was assumed to be known.
+  }
+  \label{tab:rep-table}
+\end{table*}
+
+Using nested sampling we can produce an estimate of the means and standard deviations of the inferred parameters as explained in \autoref{sec:summaryStats}.
+The actual values and inferred values are shown in \autoref{tab:rep-table}.
+The two parameters $\alpha$ and $\beta$ are estimated accurately and furthermore their standard deviations in \autoref{tab:rep-table} are much lower relative to the prior size than for the initial conditions.
+
+\begin{figure*}[!htbp]
+  \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/march2014/multinest4thesis/repressilatorICs/samplesFromPrior/thesis-ggplot-prior-samples.pdf}
+  \caption{The dynamics of the repressilator with parameters sampled from the uniform prior.
+    10 different solutions of the system's six variables are shown with $\alpha$ and $\beta$ chosen randomly from a uniform prior. 
+    Compared with \autoref{fig:repdynPost} the dynamics show a wide range of solutions. 
+    Solution with $\alpha=125$ and $\beta=2$, dashed black line; prior sampled dynamics, transparent coloured lines.
+  }
+  \label{fig:repdynPrior}
+\end{figure*}
+
+\begin{figure*}[!htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/march2014/multinest4thesis/repressilatorICs/posteriorSamples/thesis-ggplot-posterior-samples.pdf}
+  \caption{The dynamics of the repressilator with parameters sampled from the inferred posterior.
+    100 equally-weighted posterior samples of the system's six variables are shown.
+    Compared with \autoref{fig:repdynPrior} the dynamics have been significantly constrained by the data (vermilion diamonds) so that all solutions are close the true solution (dashed black line, parameters given in \autoref{tab:rep-table}).
+    The 26 noisy data points were informative enough to allow discovery of a posterior distribution that produces accurate dynamics for all variables.
+    Estimated dynamics, transparent coloured lines.
+  }
+  \label{fig:repdynPost}
+\end{figure*}
+
+If we consider the model output with 10 pairs of the parameters $\alpha$ and $\beta$ randomly drawn from the uniform prior there is a wide range of dynamics, \autoref{fig:repdynPrior}, compared to the known solution (dashed black lines).
+In contrast, after the data have arrived, we can use the equally-weighted posterior samples to see how informative the data were about the parameters. 
+\autoref{fig:repdynPost} shows the dynamics from 100 posterior parameter sets.
+The data (shown in the bottom left panel) have constrained the parameter distribution significantly such that all sets closely match the true parameters' dynamics (dashed black lines).
+As can be seen, despite not estimating the initial conditions well, they are not that important for capturing the qualitative dynamics of the entire system.
+This is because the repressilator system has a limit cycle and is therefore insensitive to most initial conditions.
+After the first peak the inferred oscillations match very closely to the true solution for all variables even though the algorithm only had a few, noisy data points available for one variable, cI protein.
+Even the first peak is fairly well estimated by the posterior distribution.
+The log-evidence for this model and data is $-34.27 \pm 0.14$.
+
+\begin{figure*}[htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/pippiRepICs/thesis-MarginalsGrid.pdf}
+  \caption{Estimated marginal distributions of the repressilator example with missing initial conditions.
+    Using the posterior samples produced as a by-product of nested sampling we can produce marginal distributions.
+    In this example the mean and best-fit points are close to the peak of estimated probability density.
+    Mean parameter value, black circle; best-fit likelihood parameter value, orange diamond.
+  }
+  \label{fig:repMarginals}
+\end{figure*}
+%
+\begin{figure*}[htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/pippiRepICs/thesis-RepJointsGrid.pdf}
+  \caption{Estimated joint distributions of the repressilator example with missing initial conditions.
+    Using the output of nested sampling we can also produce estimates of the joint distributions of pairs of parameters.
+    The overall appearance of the posterior is roughly unimodal.
+    Brighter colours indicate higher relative probability.
+    Mean parameter value, white circle; best-fit likelihood parameter value, white diamond.
+  }
+  \label{fig:repJoints}
+\end{figure*}
+
+In this example, and like \autoref{fig:mig}, the data significantly reduced the probable volume of parameter space from a wide prior distribution to a narrower posterior.
+In spite of the fact that the data were few and noisy the simulations from the posterior distribution show us that the data were still informative enough to reconstruct the system's dynamics accurately.
+A lack of accuracy in parameter estimations but well captured systems dynamics is a phenomenon that has been well studied in recent years~\cite{gutenkunst2007,ashyraliyev2008,erguler2011}.
+In this case the unknown initial conditions and a lack of parameter identifiability had little overall effect on the quality of the reproduced data.
+In \autoref{fig:repMarginals} and \autoref{fig:repJoints} we show the estimated marginal and joint distributions for all parameters from this example.
+This enables us to see which parameters are more or less restricted and their correlations.
+The marginals are generally unimodal and the mean parameter values and best-fitting parameter set are similar.
+The joint distributions reveal that certain parameters are correlated, or somewhat disperse, but mostly they could be approximated by a Gaussian distribution.
+This is why the means and best-fitting parameter set are similar.
+
+\subsection{Nested sampling for model comparison}
+\label{sec:NSmodcomp}
+Initially in this section synthetic data is used to compare four coupled ODE models:  
+\begin{itemize}
+  \item the Lotka-Volterra model of population dynamics \cite{lotka1925,volterra1926}
+  \begin{equation}
+    \begin{cases}
+      \displaystyle
+      \dd{F}{t_{\vphantom{j}}} = \alpha F - \beta FR,\\
+      \displaystyle
+      \dd{R}{t} = -\gamma R + \delta FR,
+    \end{cases}
+    \label{LV-eqn}
+  \end{equation}
+  \item the repressilator system in Equation~\eqref{rep-sys},
+  \item the Goodwin model of protein-mRNA interactions \cite{goodwin1963,edelstein1988}%pg370
+  \begin{equation}
+    \begin{cases}
+      \displaystyle
+      \dd{M}{t_{\vphantom{j}}} = \frac{1}{1 + E} - \alpha,\\
+      \displaystyle
+      \dd{E}{t} = M - \beta,
+    \end{cases}
+    \label{goodwin}
+  \end{equation}
+  \item the trimolecular two-species Schnakenberg model \cite{schnakenberg1979,murray2002}%pg234
+  \begin{equation}
+    \begin{cases}
+      \displaystyle
+      \dd{u}{t_{\vphantom{j}}} = \alpha - u - u^2v,\\
+      \displaystyle
+      \dd{v}{t} = \beta - u^2v.
+    \end{cases}
+    \label{schnakenberg}
+  \end{equation}
+\end{itemize}
+
+The synthetic data was generated from one variable of the repressilator system with known parameters before Gaussian noise was added.
+To ease comparison between different systems the data were scaled so that the amplitude is maximally one. 
+All models are mechanistically different, however as all models are capable of oscillatory solutions, any of them could be used to describe the chosen data set if no further information was available.
+Our task is to evaluate if, and how well, we can choose between competing models given little data.
+
+\begin{figure*}[!htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/1varNOISYplots/mod-comp-thesis.pdf}
+  \caption{Fit to noisy data of four different oscillatory models.
+    Clockwise from top left: Lotka-Volterra, repressilator, Goodwin and Schnakenberg models.
+    Using the same noisy data (diamonds) 3000 equally-weighted samples (purple) were drawn from the posterior distribution of each model (except the Goodwin where we show a representative sample as all solutions were similar).
+    The mean of the Lotka-Volterra system's posterior is not a good summary statistic for this distribution due to its non-unimodality (\autoref{fig:LVMarginals} and \autoref{fig:LVJoints}).
+    The best-fit solution, dashed yellow line; solution using mean parameters, black dotted line.
+  }
+  \label{fig:mod-comp}
+\end{figure*}
+
+\autoref{fig:mod-comp} shows 3000 samples from the posterior of all models (except Goodwin) along with the solution using mean parameter values and the dynamics of the best-fitting sample point from the four models.
+These summarising curves for the Goodwin model have much higher frequency than the others, yet can still give a good least-squares error.
+Note that the concentration falls below 0 for this model with these parameters, which is clearly unbiological. 
+The other three models pick out the correct frequency in the data. 
+The solution with the mean parameter values of the Lotka-Volterra system, \autoref{fig:mod-comp}, is not a good summary statistic for this distribution though the best-fit likelihood line for this model in \autoref{fig:mod-comp} shows a good fit to the data.
+This indicates care should be taken when summarising distributions.
+However merely relying on the best fitting parameters is essentially a maximum likelihood approach, and may miss important contributions from other parts of parameter space. 
+To visualise this, \autoref{fig:LVMarginals} and \autoref{fig:LVJoints} show estimated marginal and joint distributions (with means and best-fit solution parameters indicated) for the Lotka-Volterra system which demonstrates the non-Gaussian shape of its posterior. 
+The log-evidence values attained for the four models are shown in \autoref{tab:mod-comp} indicating a very strong preference for the Lotka-Volterra model.
+
+\begin{figure*}[!htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/pippiLVnoisy1var/thesis-MarginalsGrid-LV.pdf}
+  \caption{Estimated marginal distributions of the Lotka-Volterra system.
+    25 noisy data points generated from the repressilator system were used as the data for inference.
+    Compared to \autoref{fig:repMarginals} parameters far away from the highest probability still have some probability and are accounted for in the Bayesian framework.
+    Note the distribution for the first variable's initial condition (Y1 I.C.), which was inferred as a parameter, in asymmetrically bimodal.
+    Mean parameter value, black circle; best-fit likelihood parameter value, orange diamond.
+  }
+  \label{fig:LVMarginals}
+\end{figure*}
+%
+\begin{figure*}[!htbp]
+  \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/pippiLVnoisy1var/thesis-LVJointsGrid.pdf}
+  \caption{Estimated joint distributions of the Lotka-Volterra system.
+    25 noisy data points generated from the repressilator system were used as the data for inference.
+    Compared to \autoref{fig:repJoints} the joint probability landscapes are far less unimodal and provide an understanding of why the solution with these mean parameters shown in \autoref{fig:mod-comp} does not follow the same dynamics as the posterior samples.
+    Brighter colours indicate higher relative probability.
+    Mean parameter value, white circle; best-fit likelihood parameter value, white diamond.
+  }
+  \label{fig:LVJoints}
+\end{figure*}
+
+\begin{margintable}%[!htbp]
+  % \centering
+  \begin{tabular}{@{}c@{\hspace{0.1em}}c@{}}
+    \toprule
+    Model & log $\mathcal Z$ \\
+    \midrule
+    Lotka-Volterra & $\ -23.41 \pm 0.10$ \\
+    Repressilator & $\ -41.82 \pm 0.13$ \\
+    Schnakenberg & $\ -44.84 \pm 0.14$\\
+    Goodwin & $\!\! -165.60 \pm 0.12$\\
+    % Lotka-Volterra & $-23.410 \pm 0.104$ \\
+    % Repressilator & $-41.816 \pm 0.128$ \\
+    % Schnakenberg & $-44.843 \pm 0.137$\\
+    % Goodwin & $-165.596 \pm 0.115$\\
+    \bottomrule
+  \end{tabular}
+  \caption{Log-evidence of the four models for noisy data.
+    The log-evidence was computed by nested sampling for each model using the 25 noisy data points shown as diamonds in \autoref{fig:mod-comp}.
+    Using Jeffreys' scale for interpretation the data provide very strong evidence for the Lotka-Volterra model (\autoref{LV-eqn}) and against the Goodwin model (\autoref{goodwin}) compared with the other models.
+    The repressilator (\autoref{rep-sys}) has positive evidence for it over the Schnakenberg model (\autoref{schnakenberg}).
+  }
+  \label{tab:mod-comp}
+\end{margintable}
+
+Given the nature of the sparse and noisy data it is not too surprising that a simpler model with two variables and six parameters is given preference over the model with six variables and eight parameters from which the data were actually generated. 
+If the data are of better quality i.e.~no noise and of greater density, one can see the repressilator model gaining more support in \autoref{fig:data-vs-logZ} relative to the Lotka-Volterra system, but until an unreasonable amount of data is available (500 data points) the Lotka-Volterra model is preferred due to the it being the more parsimonious explanation of the data --- visually both systems can fit the given data very well.
+Perhaps counter-intuitively, the evidence decreases with the increasing quantity of data.
+This is due to the log-likelihood function.
+As there are now more data points, unless the fit is exceptionally good, the least-squares residual increases due to summing up more errors.
+The evidence comprises both the Occam factor and the best fit likelihood (at least assuming the posterior is approximately Gaussian)~\cite{mackay2003}.
+Hence a worse likelihood score will similarly affect the evidence.
+
+\begin{figure}[!htbp]
+    \includegraphics[width=\textwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/data-vs-logZ-4-diff-models/data-vs-logZ.pdf}
+  \sidecaption[][-350pt]{Evidence changes as a function of data quantity.
+    As the resolution of the timecourse improves the Goodwin model (skyblue, diamonds) and the Schnakenberg model (green, circles) lose support faster than the Lotka-Volterra (orange, squares) and repressilator (black, triangles) systems.
+    The known model, the repressilator, gains preference only for a larger number of data points (500 points with a time gap of 0.1), even when using noiseless data.
+%  }
+  \label{fig:data-vs-logZ}
+  }
+\end{figure}
+
+During this test we normalised the amplitudes and assumed none of the initial conditions were known, whereas in practice they can be normally be measured or taken to be the first time point.
+With the initial condition included for the repressilator variable measured, cI protein (as in \autoref{fig:repdynPost}), and with unnormalised amplitudes, the log-evidence improved to $-34.27 \pm 0.14$ compared with $-41.82 \pm 0.13$ without knowledge of the initial point.
+
+The tests so far have all used synthetic data so that the inferences made can be compared to a reference with known parameters.
+Nevertheless some experimental data is available and can provide a more realistic situation in line with what typically faces a mathematical modeller.
+Taking fluorescence data from the original repressilator paper~\cite{elowitz2000} as a proxy for one of the variables in the system it was investigated whether this was sufficient to support the known model.
+The data were extracted from Figure~2C of the original work~\cite{elowitz2000} and a linear increase in fluorescence equal to $(45/600)\times t$ was removed.
+As the data are in arbitrary units it was rescaled to be maximally one again and the algorithm was used on the four models as before.
+\autoref{tab:mod-comp-EXP} shows the results which now give positive to strong evidence for the Schnakenberg model.
+The experimental data, solution with mean parameters and best-fit parameter's solution are plotted in \autoref{fig:EXPModComp} which shows that although there is perhaps a fair fit in terms of residuals, in terms of the period of the data the posterior summary estimates are generally not at all close.
+If the frequency domain is known \emph{a priori}, the likelihood function could be adjusted from a simple least-squares measure to take this into account.
+When posterior samples were plotted it was hard to gain anything visually thus for simplicity just the summary solutions are shown.
+Towards the second half of the experimental time series the repressilator's mean parameters' solution and best-fit solution do match the data more closely but this wasn't the case for all posterior samples.
+
+\begin{margintable}%[!htbp]
+  % \centering
+  \begin{tabular}{@{}c@{\hspace{0.2em}}c@{}}
+    \toprule
+    Model & log $\mathcal Z$ \\
+    \midrule
+    Schnakenberg & $-101.66 \pm 0.13$ \\
+    Repressilator & $-104.85 \pm 0.11$ \\
+    Lotka-Volterra & $-124.19\pm 0.15$ \\
+    Goodwin & $-166.70 \pm 0.14$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Log-evidence of the four models for experimental repressilator data.
+    The log-evidence was computed by nested sampling for each model using the 60 experimental data points given in the repressilator article~\cite{elowitz2000}.
+    The linear increase in fluorescence with time was removed and data rescaled to be maximally one.
+    Using the interpretation on Jeffreys' scale the use of experimental data now provides positive to strong evidence for the Schnakenberg model against the repressilator and very strong evidence against the other two models.
+    % cat rep-data-from-fig | awk '{print $2-((45*$1)/600)}'
+  }
+  \label{tab:mod-comp-EXP}
+\end{margintable}
+
+\begin{figure*}[!htbp]
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/EXPpics/schnak/SchnakPlot.pdf}
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/EXPpics/rep/REPplot.pdf}
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/EXPpics/lv/LVplot.pdf}
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/sept2013/PLOS1REVISIONS/EXPpics/goodwin/GOODplot.pdf}
+  \caption{Mean and best-fit to the four models using experimental data.
+    Experimental data points (blue diamonds) from the original repressilator paper~\cite{elowitz2000} were used to compare the four models, which from top to bottom are the Schnakenberg, repressilator, Lotka-Volterra and Goodwin models.
+    None of the models generally did well at identifying the correct period of the experimental oscillations.
+    Solution using mean parameter values, black dotted lines.
+    Solution using best-fit likelihood parameter value, orange solid lines.
+  }
+  \label{fig:EXPModComp}
+\end{figure*}
+
+If there was some uncertainty as to the model or its parameters, designing experiments that can maximise the information in the data is an approach that has been explored recently~\cite{liepe2013}.
+Experimentally it can be hard to increase the resolution of a timecourse so focusing on other genes or proteins of interest can be fruitful. 
+With this in mind, and considering the results shown in \autoref{fig:data-vs-logZ}, the effect of gathering data from another variable of interest rather than trying to increase the quantity of data available from one variable was investigated.
+As previously the repressilator system~\autoref{rep-sys} was used to generate the timepoints, but now with two variables of 25 timepoints each and additional Gaussian noise.
+(The same random seed was used so as not to introduce this potential bias in generating the noise.)
+The four oscillatory models chosen before are used with nested sampling for model comparison.
+The results are presented in \autoref{tab:mod-comp-2vars}.
+There is now much stronger support, compared to just having data from one variable, for the repressilator model---the log-Bayes Factor has gone from 18 in favour of the Lotka-Volterra model over the other models to 72 in favour of the repressilator.
+This is regarded as decisive evidence for the repressilator on Jeffreys' scale.
+For these example models the use of data from two variables gives far more information than increasing the quantity of data from one variable and enables us to prefer the known model.
+We are thus able to suggest this interesting aspect should also be considered when designing experimental research, and may be very useful for Bayesian model comparison in helping to distinguish competing models of a biological process.
+
+\begin{margintable}%% [!htbp]
+  % \centering
+  \begin{tabular}{@{}c@{\hspace{0.2em}}c@{}}
+    \toprule
+    Model & log $\mathcal Z$\\
+    \midrule
+    Repressilator & $\ \> -77.44 \pm 0.14$ \\
+    Schnakenberg & $-149.17 \pm 0.14$ \\
+    Lotka-Volterra & $-339.07 \pm 0.12$ \\
+    Goodwin & $-468.03 \pm 0.12$ \\
+    % Repressilator & $-77.437 \pm 0.142$ \\
+    % Schnakenberg & $-149.170 \pm 0.137$ \\
+    % Lotka-Volterra & $-339.074 \pm 0.123$ \\
+    % Goodwin & $-468.026 \pm 0.125$ \\    
+    \bottomrule
+  \end{tabular}
+  \caption{Log-evidence of the four models for noisy data from two variables.
+    The log-evidence was computed by nested sampling for each model using 25 noisy data points from two repressilator variables.
+    For these example models, it was found that the use of data from two variables gives more valuable information than an  increase in the quantity of data from one variable.
+    The data provide decisively strong evidence for the repressilator as judged on Jeffreys' scale.}
+  \label{tab:mod-comp-2vars}
+\end{margintable}
+
+\section{Conclusion}
+Nested sampling is an effective way of calculating the evidence for a model and producing samples from the posterior distribution of the model's parameters.
+Nested sampling can be viewed as a Bayesian version of Monte Carlo for which initially the prior and then the likelihood are used to guide parameter space exploration.
+The 1D integral over the likelihood is solved by treating it as a sorting problem.
+As with other Bayesian approaches and in contrast to optimisation-based methods, samples are obtained from a full distribution of the parameters of interest rather than merely a point estimate for the parameter (and possibly an estimate of the variance depending on the method used).
+These posterior sample points can be used for further analysis such as marginal or joint distributions.
+
+It was shown how the procedure produces samples from the posterior probability distribution of the parameters to compute the normalisation constant of the posterior.
+It has been demonstrated that nested sampling can produce good estimates for the parameters in systems of ordinary differential equations under typical biological scenarios of sparse, noisy data, where the data was only available from one out of six variables.
+Nested sampling was also shown to produce comparable parameter estimates to the established workhorse of Bayesian inference, namely MCMC, for a biological problem with experimental gene expression data.
+
+Using Bayes' theorem for inference additionally helps reduce overfitting. 
+In our examples the plasticity of the posterior of the Lotka-Volterra model meant that the single variable data set available was not sufficient to give preference to the repressilator model that the data were generated from.
+However when data were introduced from another variable this was able to constrict the parameter space further to then convincingly give a Bayes factor in favour of the repressilator. 
+As the mechanisms of these two models are quite different, the modeller may have background knowledge to prefer one system over another and certainly Bayes factors or any other metric for model comparison should not replace intelligent reasoning about the problem being studied.
+
+Nevertheless a remaining problem is the reliability of model comparison in light of limited data for realistic problems where the ideal model is unknown.
+This difficulty could be addressed by the construction of other models, some which could, and some that could not, possibly describe the system under study accurately.
+Performing Bayesian model comparison assuming equal belief in all models in this case could reveal whether the target model really can provide a justifiably better fit to the data than a number of other models.
+If a simpler model was found that ranks higher then this would reveal the limitation in the present data set, and that adding more parameters is not justified yet until better data are available.
+
+In our example using experimental repressilator data we could use this as a first run to clearly identify that the models are oscillating at the frequency of the data collection timepoints rather than the frequency of the fluorescence.
+This then could be seen as a calibration run that informs the next round of inference where we incorporate this result into our background knowledge and update our likelihood function and/or prior parameter distributions accordingly.
+A true Bayesian would take their prior belief for each model into account along with the evidence values for each before making a conclusion based on the posterior odds.
+It may be found that the evidence for one model is sufficient to overcome a strong prior belief on the model space.
+The data available limits the accuracy of the inferences we can make but provides the odds for hedging our bets --- it does not mean that the ``wrong'' model can't be preferred.
+Alternatively the predictions from the competing models could be used as a way to distinguish between them in light of a validation data set or further data acquisition.
+
+If we have only a small number of models we wish to evaluate, the approach of separating each model to provide an individual prediction that can be used to guide experimental validation is tractable.
+Bayes factors can be used to compare and select amongst models.
+For prediction purposes, however, the full hypothesis space is of interest to take into account parameter and model uncertainty.
+Model averaging is thus an important concept that provides a canopy above the layers of parameter and model inference~\cite{mackay2003, burnham2002}. 
+In terms of the least biased prediction, multimodel inference is therefore the approach of choice~\cite{mackay2003, posada2004, burnham2002, link2006}.
+After the new data arrive, these can be used to update the probability distributions over each model's parameter space and furthermore to then update the probabilities of the models themselves by computing the posterior distribution over model space.
+
+Nested sampling has the advantage of calculating the evidence as its main focus, thus readily providing us with the quantity required for model comparison.
+For systems biologists this ability to achieve both parameter inference and model comparison with the same algorithm is clearly applicable to many current challenges in the field.
+
+Proper statistical treatment of a biological modelling problem can be achieved with Bayesian inference and nested sampling in particular.
+Thus a bright future beckons for systems biologists wishing to quantify uncertainty, infer parameters and compare models.

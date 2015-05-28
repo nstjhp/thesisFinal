@@ -1,0 +1,595 @@
+\chapter{Introduction \emph{\&} Background}%\chaptermark{here here}
+\thispagestyle{empty}
+\label{chapter:intro}
+
+\section{Outline of the thesis}\label{sec:outline}
+This thesis opens by providing a very short summary of the molecular biology the non-biologist reader may need to know to understand future sections of this thesis and also introduces the model plant that informs our study of the floral transition.
+More detail on the genes known to be involved in this process, as well as upstream, from the first perceived signals, and downstream, to floral organ specification, are provided which gives a sense of the scale of the network.
+After the literature reporting experimental biological studies is covered, published mathematical models of flowering time in model species and crop species are reviewed.
+Thereafter the introduction will cover the basics of Bayesian inference, and why this statistical framework is used as opposed to optimisation and maximum likelihood approaches.
+This will be needed for the following chapter on nested sampling which is quite a new technique for a proper Bayesian treatment of an inference problem.
+It allows one to calculate the key quantity for model comparison and perform parameter inference for mathematical models.
+We are amongst the first to apply nested sampling to the field of systems biology.
+Following initial testing and tuning of the algorithm its output will be measured against that of the current workhorse of Bayesian inference.
+System dynamics will be recovered and models of biological oscillators compared.
+Our own model for the floral transition is developed in the next chapter.
+A reductionist approach will be taken to help us understand key features of the network by boiling the multi-gene network from the literature review down to a few key hubs.
+A simple linear model of these hubs will be compared with an ordinary differential equation (ODE)-based model.
+This ODE model has at its core well-studied network motifs for enabling a system to reduce noise levels and confer irreversibility. 
+Using nested sampling all the developed models are compared in a robust fashion and how accurately they predict experimental data is studied.
+That chapter is concluded with a detailed discussion of the strengths and limitations of the model.
+Lastly the thesis ends with an overall discussion of the work presented, the themes considered and gives an outlook on possible future developments.
+
+\section{Basic biology and \emph{Arabidopsis thaliana}}\label{sec:basicBio}
+Plants are eukaryotes which means their cells have a nucleus\sidenote{\emph{Eukaryote derives from the Greek meaning true kernel.}}.
+Deoxyribonucleic acid (DNA) is found in the nucleus and is comprised of four bases: adenine (A), cytosine (C), guanine (G) and thymine (T) and a sugar-phosphate backbone~\cite{alberts2008}.
+Hydrogen bonds between the complementary base pairs A:T and C:G give DNA its famous double helix structure.
+The process of transcription takes place in the nucleus.
+Double stranded DNA is opened by enzymes and pre-messenger ribonucleic acid (pre-mRNA) is transcribed.
+This contains exons and introns, regions that do or do not code for a protein respectively.
+The introns are spliced out and exons joined together so that mature mRNA contains only coding regions.
+Nuclear export follows from the cell's nucleus to the cytoplasm which is the location of the process of translation.
+This means the mRNA is translated from its coding sequence and a protein is formed, facilitated by ribosomes.
+Certain proteins called transcription factors can bind to the promoter sequence of a gene to activate or inhibit the transcription of that specific gene.
+Further control processes such as post-transcriptional modifications or micro-RNAs also affect the level of a gene's expression.
+\begin{figure*}[!hp]%
+  \centering
+    \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/thesis/arabidopsisPhotos/araPhenotypes2.jpg}
+% \begin{figure*}[!hp]%
+% \centering%
+% \begin{subfigure}[b]{\myfullwidth}%
+% \includegraphics[width=\linewidth]{/home/nick/Desktop/arabidopsisPhotos/IMG_4755.JPG}%
+% % \caption{
+% %   The Arabidopsis rosette and early flower bolt.
+% % }
+% % \label{fig:araRosette}
+% \end{subfigure}\\\vspace*{-1mm}%
+% \begin{subfigure}[b]{0.4999\myfullwidth}%
+% \includegraphics[angle=90,width=\linewidth,clip=true,trim = 0cm 0cm 2cm 0cm]{/home/nick/Desktop/arabidopsisPhotos/IMG_4797.JPG}% angle must come 1st!!!
+% % \caption{
+% %   The main stem of a bolting Arabidopsis. Cauline leaves are visible.
+% % }
+% % \label{fig:araStem}
+% \end{subfigure}%
+% \begin{subfigure}[b]{0.4999\myfullwidth}%
+% \includegraphics[angle=90,width=\linewidth,clip=true,trim = 0cm 0cm 2cm 0cm]{/home/nick/Desktop/arabidopsisPhotos/IMG_4793.JPG}%Trim works from original orientation not rotated!!!
+% % \caption{
+% %   A branching Arabidopsis. Siliques are visible on the main stem.
+% % }
+% % \label{fig:araBranching}
+% \end{subfigure}%
+% %\captionsetup{justification=centering}
+\caption{The phenotype of short-day grown Arabidopsis.
+  Top) Rosette and early flower bolt.
+  Lower left) The main stem of a bolting Arabidopsis.
+  Cauline leaves are visible.
+  Lower right) A branching Arabidopsis.
+  Siliques are visible on the main stem.}%
+\label{fig:ara}%
+\end{figure*}
+Gene regulation is a highly complex and intricate process only briefly touched on here.
+Understanding the interactions between genes, and the proteins they code for, is a major aim for scientists across the world.
+Fortunately for the systems biologist tackling problems in plant biology there is a model organism which over two decades of detailed genetic studies have revealed many components of its genetic regulatory networks (GRNs).
+
+\emph{Arabidopsis thaliana} (L.) Heynh\@.\sidenote{\emph{Hereafter} Arabidopsis \emph{is used as the common name.}} is a model plant species in the Brassica family that was the first plant to have its sequenced genome published~\cite{arabidopsis2000}.
+\begin{figure}[htb!]
+%  \includegraphics[width=\myfullwidth,clip=true,trim = 18cm 6cm 10cm 4cm]{/home/nick/Desktop/arabidopsisPhotos/IMG_4810.JPG}
+  \includegraphics[width=\textwidth]{/home/nick/Dropbox/thesis/arabidopsisPhotos/araInflor2.jpg}  
+  \sidecaption[][-300pt]{An Arabidopsis inflorescence.
+    Note siliques forming from the oldest flower and young buds still developing.
+    This is because wildtype Arabidopsis are indeterminate---they will keep producing new growth from the shoot apex.
+  }
+  \label{fig:araInflor}
+\end{figure}
+A common weed, its relatively small diploid genome, short life cycle and small physical size provide a good testbed for understanding many biological processes.
+Post-germination, the life cycle of an Arabidopsis plant can be simply described as a vegetative phase, where leaves are formed in a rosette on the ground, followed by a transition to reproductive development where flowers are formed.
+Morphologically around the time of this transition the plant bolts.
+This means it develops vertical stems attached to which are cauline leaves, and when the transition is complete the apical primordia that would otherwise have become leaves become flowers.
+After pollination and fertilisation the seed will set in pods (siliques) before, as an annual, the plant will die.
+The floral transition (as it's known) is therefore important for correct timing of flower and seed production to enable the parent plant's progeny to germinate and develop.
+Understanding the floral transition is an active area of research globally.
+Excellent genetic studies have revealed many genes involved in this crucial developmental phase but there have been few attempts to give a mathematical understanding to the transition --- the focus of this thesis.
+Next we give an overview of the experimental literature for multiple pathways that converge to effect flowering time, and genes that affect the floral transition and the development of floral organs.
+
+\section{The genetics of flowering time}\label{sec:ftGenetics}
+The floral transition in Arabidopsis has been a well-studied developmental progression over the past 25 years.
+Many key genes and signalling pathways have been elucidated from experimental studies.
+Microarrays, which allow for the analysis of thousands of genes genome-wide, have revealed that hundreds of transcripts are specifically affected in their expression in the apex upon floral induction~\cite{wellmer2006,schmid2003}.
+
+There are thought to be at least six pathways~\cite{simpson2002,srikanth2011} (see \autoref{fig:srikanth}) that stimulate flowering in Arabidopsis: ageing, photoperiod, vernalisation, ambient temperature, autonomous and gibberellin (GA).
+Some of the most important elements in these pathways have been revealed to be genes that are integrators for multiple pathway signals.
+These floral pathway integrators activate floral meristem identity genes to facilitate meristem changes that lead to the activation of organ identity genes which control flower development.
+
+\begin{figure*}[hptb!]
+  \includegraphics[width=\myfullwidth]{/home/nick/Dropbox/thesis/flowering-diag-srikanth-et-al.png}
+  \caption{The flowering time network of Arabidopsis.
+    Multiple environmental and endogenous signals, some travelling over a long distance, converge at the apex.
+    At the shoot apical meristem a complex network integrates these signals to robustly initiate flowering time.
+    Figure taken from Srikanth \& Schmid~\cite{srikanth2011}.
+  }
+  \label{fig:srikanth}
+\end{figure*}
+Vernalisation is the process whereby prolonged exposure to winter cold increases the competence of a number of species to flower in the spring.
+This has resulted in a number of agricultural crops like wheat and beans being bred to establish in the autumn before the next summer's harvest, in contrast to lines that can be planted in the spring and harvested just a few months later.
+Vernalisation is also an important pathway in certain accessions of Arabidopsis.
+Repression of the MADS-box transcription factor \emph{FLOWERING LOCUS C} (\emph{FLC}) has been established as the main target of the vernalisation pathway in Arabidopsis~\cite{michaels1999} but there are also \emph{FLC}-independent mechanisms of vernalisation~\cite{michaels2001}.
+In particular, the related genes \emph{AGAMOUS-LIKE 19} (\emph{AGL19})~\cite{schonrock2006} and \emph{AGL24}~\cite{michaels2003} promote flowering which contrasts with \emph{FLC} which acts as a major repressor of floral initiation in some accessions.
+FLC represses some of the photoperiod pathway genes such as \emph{FLOWERING LOCUS T }(\emph{FT}), \emph{SUPPRESSOR OF OVEREXPRESSION OF CONSTANS1} (\emph{SOC1}) and \emph{FD} before vernalisation by direct binding~\cite{searle2006}.
+Profound investigations into complex molecular biology and epigenetic silencing after plants return to the warm have revealed how \emph{FLC} is stably repressed after enough cold exposure at the cell level~\cite{angel2011}.
+Li et al.~\cite{li2008} showed that another repressor, \emph{SHORT VEGETATIVE PHASE} (\emph{SVP}), interacts with FLC to delay flowering by associating to the \emph{FT} and \emph{SOC1} promoter regions.
+\emph{SVP} is in addition regulated by the ambient temperature, autonomous and gibberellin pathways~\cite{lee2007,li2008} and is but one example of the degree of overlap between the autonomous and temperature pathways.
+
+Autonomous pathway proteins such as FCA, FPA, FVE and LUMINIDEPENDENS, promote flowering independently of photoperiod but the late flowering mutants respond to vernalisation if \emph{FLC} is present~\cite{michaels2001}.
+This suggests they act upstream of \emph{FLC} and promote flowering by inhibiting \emph{FLC} expression~\cite{michaels2001}.
+Like many genes, \emph{FCA} and \emph{FVE} have a dual role in flowering time control.
+They are redundant in the autonomous pathway but act together in a temperature-dependent pathway~\cite{blazquez2003}.
+SOC1 expression is also affected by the autonomous pathway~\cite{borner2000,samach2000}.
+
+In the era of global warming the effect of temperature on flowering is important to understand for breeding heat resilience into crops.
+The ambient temperature pathway~\cite{blazquez2003,balasubramanian2006} is thus of growing interest.
+The surrounding temperature in a plant's environment can induce flowering at warmer temperatures under otherwise non-inductive short-day light conditions~\cite{balasubramanian2006}.
+A small shift from 23~°C to 27~°C was enough to reduce the time to flower in many accessions and mutant lines~\cite{balasubramanian2006}.
+Kumar et al.~\cite{kumar2012} showed that increasing temperature causes PHYTOCHROME INTERACTING FACTOR4 (PIF4), a transcription factor, to activate \emph{FT} and is necessary for floral induction in short-day photoperiods with temperatures of 27~°C.
+Overexpression of \emph{PIF4} causes premature flowering at 22~°C but when grown at 12~°C this early flowering is strongly suppressed~\cite{kumar2012}.
+
+Two recent similar papers deal with another road to ambient temperature response in parallel to the route of \emph{PIF4}.
+These articles~\cite{pose2013,lee2013} focus on the control of temperature-dependent flowering by \emph{SVP} and \emph{FLOWERING LOCUS M} (\emph{FLM}) and deliver a number of interesting results.
+As mentioned above SVP is a floral repressor that interacts with FLC.
+FLM, related to FLC, also interacts with SVP to control flowering, yet in two opposing ways.
+This is because of the process of alternative splicing whereby certain exons or introns that make up the gene are either included or excluded from the mature mRNA before being translated into a protein.
+This method can therefore give extra levels of molecular control.
+The two main forms of \emph{FLM} in Col-0 wildtype are labelled \emph{FLM-β} and \emph{FLM-δ}.
+At 16~°C \emph{FLM-β} is dominant and at 27~°C \emph{FLM-δ} is prevalent~\cite{pose2013}.
+The FLM-β isoforms form a complex with SVP to repress flowering whereas the SVP-FLM-δ complex promotes flowering~\cite{pose2013,lee2013}.
+Hence the temperature-dependent splicing of these FLM variants has an antagonistic effect at different temperatures.
+The repressor complex can bind to the promoters of various floral genes, for example \emph{SOC1} or \emph{FT}, to affect their transcription~\cite{pose2013,lee2013}.
+Furthermore at higher temperatures the stability of SVP protein is decreased~\cite{lee2013} and \emph{svp} mutants flowered earlier than wildtype at temperatures from 5~°C to 27~°C~\cite{lee2013}.
+
+\emph{SVP} is also involved in the gibberellin pathway.
+Gibberellin is a phytohormone\sidenote{\emph{Phytohormone derives from the Greek for plant stimulus.}} and is required for short-day flowering in Arabidopsis~\cite{wilson1992}.
+The strong GA-deficient mutant \emph{ga1-3} never flowered at 21~°C or 25~°C in 8 hour short-day photoperiods~\cite{wilson1992}.
+Exogenous application of GA rescues the flowering phenotype and speeds up wildtype flowering in short-days~\cite{wilson1992}.
+A number of enzymes are involved in gibberellic acid biosynthesis.
+One of these enzymes, GA20-OXIDASE 2, is rate-limiting and, because it's reduced in its gene expression levels by SVP, lower levels of gibberellic acid ensue~\cite{andres2014}.
+Floral integrators are also implicated as having a function in the GA pathway.
+\emph{SOC1} is regulated by gibberellins~\cite{borner2000,moon2003} as, for example, in the \emph{ga1-3} mutant grown in short-days it was shown that with GA treatment \emph{SOC1} expression significantly increased after six weeks~\cite{moon2003}.
+Blázquez et al. demonstrated that \emph{LEAFY} (\emph{LFY}) levels were far lower in \emph{ga1-3} mutants compared to wildtype and overexpression of \emph{LFY} can partially overcome the failure of these mutants to flower in short-days ~\cite{blazquez1998}.
+More detailed experiments using tissue specific promoters have shown that in long-days GA can increase \emph{FT} transcipt levels in the phloem, and this was likely to be independent of FLC~\cite{porri2012}.
+A recent report found that while gibberellin promotes the transition from vegetative to inflorescence development it surprisingly inhibits flower formation~\cite{yamaguchi2014}.
+GA mutants, such as \emph{ga1-3}, grown in long-days developed more rosette leaves but fewer cauline leaves and exhibited reduced branching~\cite{yamaguchi2014}.
+On the other hand after applying a GA treatment the plants formed fewer rosette leaves and more cauline leaves~\cite{yamaguchi2014}.
+Thus \emph{LFY} expression is increased by gibberelin levels, which promote the floral transition, but \emph{LFY} then indirectly aids catabolism of GA triggering the onset of flower development~\cite{yamaguchi2014}.
+
+Other hormones are known to influence floral development.
+\emph{LFY} is directly induced by auxin-activated MONOPTEROS in incipient primordia~\cite{yamaguchi2013}.
+In short-days a supply of cytokinin was sufficient to induce flowering that required \emph{SOC1} for this functionality as \emph{soc1} mutants did not flower after hormone treatment~\cite{daloia2011}.
+The spatial location of \emph{SOC1} expression and the cross-talk between cytokinin and auxin in the shoot apical meristem (SAM), in particular at the stem cell niche~\cite{zhao2010}, has led some to wonder on the connection between stem cell maintenance, cytokinins and floral integrators at the time of floral induction~\cite{bernier2013}.
+
+When there are no inductive floral signals a plant must still attempt to produce seeds before dying.
+As a fallback mechanism the ageing pathway ensures that Arabidopsis will flower eventually.
+The main players so far elucidated in this respect are micro-RNAs (short non-coding sequences around 21 nucleotides in length that silence mRNA) and \emph{SQUAMOSA PROMOTER BINDING PROTEIN LIKE} (\emph{SPL}) transcriptions factors.
+Early flowering in \emph{miR-172} overexpressing lines is caused by reduced levels of \emph{APETALA2} (\emph{AP2})-like floral repressors such as \emph{TARGET OF EAT1} (\emph{TOE1}) and \emph{TOE2}~\cite{aukerman2003}.
+An important finding was that \emph{miR-172}, a floral promoter, increases over time~\cite{aukerman2003} whereas \emph{miR-156}, a floral repressor, decreases as the plant ages~\cite{wu2006,wu2009,wang2009}.
+\emph{SPL3} is directly targeted by \emph{miR-156}~\cite{wu2006} and \emph{SPL3} expression increases more than 10-fold in a week after a shift to long-days~\cite{schmid2003}.
+\emph{SPL4} and \emph{SPL5} are also regulated by \emph{miR-156}~\cite{wu2006} and this somewhat redundant clade is required for upregulation of meristem identity genes such as \emph{LFY}, \emph{FRUITFULL} (\emph{FUL}) and \emph{AP1}~\cite{yamaguchi2009}.
+Similarly \emph{SPL9} binds \emph{SOC1}, an important integrator of the floral pathways, as well as \emph{AGL42}, both MADS box family members~\cite{wang2009}.
+\emph{SPL9} also directly activates \emph{miR-172}, and probably does this by overlapping with \emph{SPL10}, thus regulating vegetative phase change in Arabidopsis~\cite{wu2009}.
+
+Taken together these results show the plant has an insurance policy for flowering in non-inductive conditions.
+Interactions between \emph{miR-156}, which promotes juvenile development, and \emph{miR-172}, which is more highly expressed in the adult growth phase, regulate developmental growth and abundance of \emph{SPL} genes.
+Binding of these transcription factors to regulatory regions of genes involved in the reproductive phase transition can thus eventually stimulate inflorescence development before the plant is too old.
+
+\emph{CONSTANS} (\emph{CO}) is at the helm of the light-dependent pathway in Arabidopsis~\cite{suarezlopez2001}.
+It is regulated by circadian clock genes~\cite{suarezlopez2001}, is expressed in the SAM during floral induction~\cite{simon1996} amongst many others tissues during the plant's life~\cite{an2004} and acts in the phloem~\cite{an2004}.
+The main target of CO is \emph{FT}~\cite{samach2000,kardailsky1999,kobayashi1999}, one of the most important regulators of flowering in higher plants~\cite{turck2008}.
+For a number of species Arabidopsis \emph{FT} homologues are a core element of the photoperiod pathway~\cite{higgins2010,tamaki2007}.
+\emph{FT} mRNA is transcribed in leaves when CO protein is stabilised in long-day light conditions (for example 16 hours light, 8 hours dark), it being unstable in dark~\cite{valverde2004}.
+Through this mechanism flowering is only activated when the days get longer to ensure pollination in the correct season.
+Short inductions of \emph{FT} are sufficient to cause floral commitment if the plant is old enough~\cite{corbesier1996}.
+The FT protein is translated in the leaves and moves through the phloem to the SAM in Arabidosis~\cite{corbesier2007,mathieu2007,jaeger2007}, and rice~\cite{tamaki2007}, and thus is a major component of the ``florigen'' signal that intrigued early naturalists~\cite{turck2008}.
+This mobile protein provides the timing of flowering and spatial specificity is conferred by the transcription factor FD, with which it functions at the apex~\cite{wigge2005,abe2005}.
+This is evident because \emph{fd-2} can partially suppress the early flowering phenotypes of \emph{FT} overexpressing plants~\cite{wigge2005,abe2005}.
+The FT-FD complex activates various floral meristem genes such as \emph{FUL} and \emph{AP1}~\cite{teper2005,wigge2005,abe2005}.
+In rice, the interaction of homologues of FT and FD, Hd3a and OsFD1 respectively, is mediated by a 14-3-3 protein~\cite{taoka2011} but this has not yet been determined in Arabidopsis.
+\emph{TWIN SISTER OF FT} (\emph{TSF}) acts redundantly with \emph{FT}~\cite{yamaguchi2005}.
+The double mutant flowers later than either single mutant, but in short-day conditions the \emph{tsf-1} mutant is severely delayed compared to its effect in long-days~\cite{yamaguchi2005}.
+D'Aloia and colleagues show that \emph{TSF} is required for a flowering response to cytokinin in Arabidopsis but \emph{FT} is not~\cite{daloia2011}.
+FT is able to activate \emph{LFY} expression through the transcription factor \emph{SOC1}~\cite{yoo2005,lee2008}.
+Thus SOC1 expression is in part controlled by the photoperiod pathway of floral induction~\cite{borner2000} as well as integrating gibberellin and vernalisation signals~\cite{moon2003} as described above.
+AGL24 and SOC1 directly bind to each other and cause mutual upregulation during the floral transition, yet they are affected in different ways by upstream elements and affect different downstream genes, for example SOC1 bound the \emph{LFY} genomic sequence but AGL24 does not~\cite{liu2008}.
+This could be because AGL24 works to maintain inflorescence identity as opposed to a floral fate, hence it is targeted by AP1 and LFY for repression~\cite{yu2004}.
+
+The transcription factor LFY~\cite{weigel1992,blazquez1997} plays a key role in the integration of flowering signals in parallel with FT to activate floral meristem identity genes~\cite{kardailsky1999}.
+As one of the master integrators it functions in multiple pathways as the \emph{LFY} promoter is also a target of GA-dependent signalling~\cite{blazquez1998}.
+LFY confers floral meristem identity~\cite{weigel1992} and has a separate role in activating subsequent organ identity genes~\cite{parcy1998}.
+AP1 and LFY are direct mutual transcriptional activators~\cite{liljegren1999,wagner1999,kaufmann2010} acting in a positive feedback loop.
+AP1 has the function of regulating floral primordia growth genes such as \emph{FUL} and \emph{CAULIFLOWER} (\emph{CAL})~\cite{ferrandiz2000} whilst preventing reversion in the floral meristem by inhibiting a number of genes including \emph{AGL24}, \emph{SVP}, \emph{SOC1} and \emph{FD}~\cite{liu2007,kaufmann2010}.
+Furthermore AP1 orchestrates organ specification genes for correct sepal and petal development by binding to MADS-box proteins like SEPALLATA3 (SEP3)~\cite{smaczniak2012,kaufmann2010}.
+Other homeotic genes are initially controlled by LFY.
+For instance LFY activates \emph{AG} through direct binding~\cite{busch1999}.
+
+\begin{figure*}[!htb]
+\begin{subfigure}[b]{0.49\myfullwidth}
+   \includegraphics[width=\linewidth]{/home/nick/testing/tikz/ABCmodel.pdf}
+   \caption{The ABC model of flower development.
+     A class but not B or C class genes are required for sepal (Sep) development.
+     A and B are required for petals (Pet); B and C for stamens (Sta); and only C for carpels (Car).
+     Genes in the A and C classes inhibit each other.
+     The four E class SEPALLATA genes are required for correct development of all organs.
+   }
+  \label{fig:ABC}
+\end{subfigure}
+\begin{subfigure}[b]{0.49\myfullwidth}
+  %\includegraphics[width=\linewidth,clip=true,viewport=1900 1500 3000 2500]{/home/nick/Dropbox/thesis/arabidopsisPhotos/araFlower.jpg}
+  \includegraphics[width=\linewidth]{/home/nick/Dropbox/thesis/arabidopsisPhotos/araFlower.jpg}
+\caption{
+  A dissected Arabidopsis flower.
+  From inside out are the carpel, some stamens, two petals and two sepals.
+  A few petals and sepals were removed for clarity of presentation during dissection.
+}
+\label{fig:araFlower}
+\end{subfigure}
+\captionsetup{justification=centering}
+\caption{Arabidopsis floral organ development.}%\label{}
+\end{figure*}
+
+Organ patterning and cell fate determination in the SAM concerns distinct spatial gene expression patterns that were originally published in the now famous ABC model~\cite{bowman1991,coen1991}.
+In this model certain classes of proteins interact in specific spatial domains to give rise to a distinct floral organ identity.
+In the outer whorl, where sepals are made, only A class genes are expressed.
+The next whorl, which gives rise to petals, has A and B class proteins active.
+Inside are the male reproductive organs, the stamens, and these require the function of B and C class genes.
+Finally the inner whorl is where the carpels, the female reproductive organs, are located.
+These rely on the presence of the C class proteins.
+Importantly genes acting in the A (e.g.\ AP2) and C (e.g.\ AG) domains are mutually inhibiting~\cite{drews1991,dinh2012}.
+The ABC model was extended by the discovery that SEP1--3 are needed for the B and C class genes to function correctly --- all organs are sepal-like~\cite{pelaz2000} otherwise --- and SEP4 is required for the correct formation of all organs as leaf-like organs result in quadruple mutants~\cite{ditta2004}.
+\autoref{fig:ABC} gives the basic conceptual idea. 
+
+From the interactions described a general picture emerges of LFY and AP1 at the core of a highly complex network specifying floral fate that operate by repressing inflorescence identity genes and activating downstream patterning genes.
+This process is most commonly started through the integrators of many signalling pathways---\emph{FT} and \emph{SOC1}.
+Nevertheless floral repressors play important roles.
+One major example is \emph{TERMINAL FLOWER1} (\emph{TFL1})~\cite{shannon1991} which is a member of the same gene-family as \emph{FT} and \emph{TSF}, along with three other homologues~\cite{kobayashi1999}.
+It is thus interesting that it features as a strong floral repressor because a single nucleotide base change can give the opposite function --- conversion of TFL1's inhibitory function to floral-promoting FT function and vice versa~\cite{hanzawa2005}.
+The shoot apical meristem converts to a terminal flower in \emph{tfl1} mutants~\cite{shannon1991} and hence \emph{TFL1} maintains the indeterminacy of Arabidopsis. 
+Its expression is noticeably increased after entering the floral transition~\cite{bradley1997} with very low levels during the vegetative growth phase.
+\emph{TFL1} does not enter incipient floral primordia due to repression from LFY and AP1 with whom it has a mutually antagonistic relationship~\cite{ratcliffe1998,ratcliffe1999,winter2011}.
+A thorough investigation by Conti \& Bradley shows TFL1 protein moves outside of its mRNA expression domain in the centre of the mature apex~\cite{conti2007}.
+TFL1 movement in the inflorescence meristem is coordinated by LFY but not AP1 or CAL~\cite{conti2007}.
+
+In summary the genetics of flowering time are complex and highly interwoven (\autoref{fig:srikanth}).
+Activators and inhibitors of flowering converge from many pathways to a few pivotal integrators who influence the development of floral primordia which leads to meristem shape changes and organ development.
+As a dynamic and growing system, mechanical forces will also play a part.
+To this end Hamant and colleagues~\cite{hamant2008} proposed that two parallel and (at least partially) independent processes control plant morphogenesis, one depending on microtubules and the other depending on auxin patterning at the shoot apex~\cite{smith2006,pierre2006,jonsson2006}.
+Thus the web of connections between genetics, hormones, environmental and endogenous factors all combine to govern the correct timing of floral development.
+
+\section{Mathematical modelling of flowering time in crops and Arabidopsis}\sectionmark{Mathematical modelling of flowering time}
+\label{sec:ftModels}
+High-throughput technologies such as microarrays, deep sequencing, transcriptomics and proteomics have revolutionised plant biology.
+Progress in these areas has been rapid and has transformed the way biologists tackle new problems, providing a wealth of easily accessible and searchable information such as annotated genomes, phlyogenetic relationships, function and structure predictions, expression and co-expression patterns, metabolic profiles and more.
+Sequence-based bioinformatics has become a key part of plant biology and one that is likely to gain importance with the ever-increasing ease and speed of genome sequencing.
+Mechanistic modelling has played second fiddle to the wave of genetic and bioinformatics discoveries that have been prevalent in the field of plant biology in the past two decades and our understanding is lagging behind the data accumulation rate.
+More recently, however, there has been recognition that systems approaches, including computational modelling, will have a key role to play in elucidating many aspects of plant development and the interactions between a plant and its local environment~\cite{hammer2004,yin2010}.
+In Arabidopsis, some areas are already well advanced such as circadian clock modelling (reviewed by Bujdoso \& Davis~\cite{bujdoso2013}).
+Flowering time control is another area that has benefited from modelling.
+With the development and availability of computers and software packages, early simple theoretical models have been generally superseded by much more complicated systems of many variables, which are solved numerically.
+
+Whilst modelling of floral development in Arabidopsis was just evolving a decade ago, the modelling of flowering time in crops was in full bloom.
+However the types of modelling used in crop and model species are different~\cite{hammer2004} and it is interesting to compare these approaches.
+Crop modelling~\cite{thornley1990} has been goal oriented in terms of making useful predictions for agriculture~\cite{yin2010}, whereas model species approaches have targeted a more gene based understanding of the system.
+Crop modelling has very much been based on empirical studies, using data such as observed time to flowering or fruit production, to restrain predictions that were built using regression models.
+With regression statistics and analysis of variance (ANOVA) it is possible to account for factors like CO\textsubscript{2} emissions, location and light intensity that can vary hugely and are of importance to plant breeders and growers alike.
+Correct timing of crop production is essential for many producers, and the efficacy of these models is testament to their strength.
+
+Many crop models use quantitative trait loci (QTL) analysis for traits of interest, for example yield or days to flower.
+This operates at a level above genes by linking phenotypic and genotypic data.
+Genetic markers on a chromosome are tested for association with a trait that is scored for (quantified), often through field work.
+This commonly relies upon parent plants being genetically different which allows for identification of recombination effects in the offspring.
+Then a relatively simple statistical model for the phenotype can be created using the sum of various genetic effects.
+Markers that segregate with a trait of interest are likely to be near a QTL.
+Key questions that are attempted to be answered by QTL mapping include: how many QTL are there controlling a trait of interest? where in the genome are they located? and, what is the relative weighting each of them has on the trait?
+
+There are many climate change models for CO\textsubscript{2}, water availability, and temperature for the years ahead.
+These are key factors for plant development and the challenge is to incorporate these predictions into plant breeding tools~\cite{soussana2010}.
+A number of examples of modelling in crops and Arabidopsis are now discussed and \autoref{chapter:discussion} provides a reflection on how a multiscale approach could lead to the combining of the phenotype-based work in crops with molecular level research.
+This may be a crucial step in ensuring future plant breeding can successfully incorporate knowledge of climate change at the same time as supporting a growing global population.
+
+An early approach to modelling flowering time was developed by Thornley over 40 years ago~\cite{thornley1972}.
+This symmetric model was based on biochemical interactions between two enzymes that catalyse a substrate into two morphogens, the relative concentration of which leads to a switch between either vegetative or flowering steady stable states.
+With an elegant derivation of the equations this work emphasises minimal modelling and the benefits of a reductionist approach to gain an understanding of a system.
+Although the application of this work is to flowering plants because of the simplicity of the equations it could be used to describe any system with different developmental pathways.
+The states of the system are interpreted qualitatively and there is discussion of how perturbations to the system could affect the final outcome.
+Like many models it is parameter dependent, because the two stable states become one with a change in parameter value.
+With only one stable state a perturbation of a variable would return the system state to the dividing line between the two states, which is difficult to interpret.
+Thornley though does discuss how perhaps in the developing system the parameters could be a function of time, thus at a certain stage the plant may develop a competency to flower corresponding to the system with an unstable steady state and two stable ones.
+At this point a perturbation from the dividing unstable state, such as a flowering signal, would be sufficient for the plant to switch to a reproductive phase of development.
+If a vegetative signal was perceived then the plant would enter the vegetative state and hence there would need to be a far larger flowering signal for the plant to switch growth states.
+
+This very early non-species-specific theoretical work is an excellent example of why, although unrealistically simple, it can be good to use mathematical modelling to assist in understanding system structure and provide tractable insights that can lead to the development of more data-based models.
+
+\subsection{Crop species}
+\label{sec:cropModelLit}
+White et al.~\cite{white2008} include two major flowering regulators of bread wheat in their approach that used genetic information from 29 spring and winter wheat strains.
+Data from multiple locations worldwide were split into either a calibration or evaluation set for the gene-based model parameters.
+A linear regression approach was used to estimate the genetic effects of the \emph{Vrn-1} loci on vernalisation requirements and the \emph{Ppd-D1} locus on photoperiod sensitivity.
+The use of a specific simulation environment is common to these types of models and this work uses CSM-Cropsim-CERES-Wheat~\cite{jones2003} which can simulate the development of many stages of wheat growth and also incorporate strain-specific factors.
+The conventionally estimated parameters in the simulations predicted almost all of the variation in time to flowering for the calibration data, with a modest reduction for the evaluation set, as expected.
+Results from using gene-based coefficients reduced the accuracy only slightly indicating the possibility that using genetic information in wheat modelling together with the more conventional phenotypic data has potential.
+The quantity and quality of data is a constraining factor at present especially in terms of understanding the loci effects.
+Uncertainty is also present in the environmental data, for example the accuracy of the reported weather conditions, which can have large effects.
+
+A similar approach was used in soybean by Messina and others~\cite{messina2006}.
+A simulation model, CROPGRO-Soybean~\cite{boote1998} was used with linear functions to predict cultivar-specific parameters which inform estimates of flowering time, as well as post-flowering developmental stages and yield.
+The model was evaluated using field trial data from other locations, and was shown to predict maturity date particularly well for most varieties.
+Interestingly the results are stated to be comparable to those from common bean, which is encouraging for the development of gene-based modelling across species.
+
+Yin et al.~\cite{yin2005} develop a model for spring barley using reciprocal photoperiod transfer experiments to estimate genotype-specific parameters which are evaluated in independent field trials.
+Additionally a sensitivity analysis was performed on their four parameters, and the authors show they are all important for predicting inter-genotype differences in flowering time.
+They also find that the importance of their four parameters can be ranked, with the minimum number of days to flowering at optimal temperature and photoperiodic conditions being relatively the most important, with the photoperiod sensitivity next.
+This regression based model gave a reasonably good prediction of variation in time to flowering across both genotypes and environments.
+The original model~\cite{yin2005} is then further developed by adding a QTL-base to a new model~\cite{yin2005qtl}.
+The accuracy of this model is reduced by 9\% (to 72\%) of the overall variation, caused by genotypes and environments, with changing the parameters to QTL effects from the genotype-specific parameters used previously.
+
+Wurr and coworkers~\cite{wurr2004} consider the effects of climate change on winter cauliflower production using simulations of four different scenarios for future global greenhouse gas emissions.
+All forecasts predicted a rise in temperature.
+In the model this increase in temperature led to shorter juvenile and curd growth phases, but longer curd induction in most cases.
+Importantly location effect was found to dominate the time to maturity, raising questions for both breeders and growers.
+
+A recent model by Uptmoor and colleagues~\cite{uptmoor2012}, based on a previous crop model~\cite{uptmoor2008}, uses genotype-specific parameters and QTL effects as the inputs to a model for predicting flowering time in \emph{Brassica oleracea}.
+In this model the predictability of flowering time using genotype-specific parameters was reduced by unfavourably high temperatures.
+This suggests that noisy environmental conditions, which can be filtered by using an integrated network approach\sidenote{\emph{See \autoref{sec:simpleNets}.}}, are not fully taken into account with this modelling framework.
+Using QTL effects as the parameters instead further reduced the ability of the model to capture inter-genotype variability under both low and high temperatures.
+Incorporating QTL effects into models does at present seem to produce unsatisfactory results but the exact reasons are not yet clear.
+This could be because of undetected minor QTL~\cite{yin2005qtl} or poor estimation of their effects~\cite{uptmoor2009}.
+Sampling more plants, and at a finer resolution, should result in data that can give a more precise idea of the effects of QTL.
+Nevertheless the results using genotype-specific model parameters can give good predictions of flowering time but the use of more complex models should, for an extra computational cost, give consistently better predictions.
+
+These data-driven approaches can be very successful and highlight the need to reduce the inherent complexity of the system in order to use the power of data to guide predictions.
+In Arabidopsis research there has been a wide range of methods used to elucidate the underlying biology through simplifying assumptions.
+The goal is often to gain an understanding of genetic control elements and infer molecular mechanisms.
+The availability of greater quantities of genetic data in Arabidopsis allows for a more detailed description of processes connected with flowering as discussed below.
+
+\subsection{Arabidopsis}
+\label{sec:modelsLit}
+Welch et al.~\cite{welch2003} employed a neural network approach to quantifying flowering time in Arabidopsis for a number of genotypes.
+Neural networks are composed of interlinked nodes, each with a number of inputs, and an output to a subsequent node.
+This network structure is decided by the modeller.
+The links between nodes have an associated weight which adjusts the value between the output and input nodes.
+The weights are established through a training procedure using experimental data, typically using a least squares residual.
+Welch et al. look at the inflorescence transition in Arabidopsis and how it is specifically controlled by the autonomous and photoperiod pathways.
+Their network can reproduce the floral transition of many mutant genotypes at both 16 °C and at 24 °C.
+At the lower temperature the rate of Arabidopsis development is much reduced.
+Intriguingly they find the order of inflorescence transition between two loss-of-function genotypes switches between the two temperatures.
+Many crop simulation models would not be able to show this result, which demonstrates how using network-based methods could hopefully do more than just predict flowering time.
+
+Prusinkiewicz et al.~\cite{prusinkiewicz2007} describe the building of a model to try and understand the development and evolution of inflorescence architectures.
+The main types of inflorescence architectures observed in nature are panicles, racemes and cymes.
+This paper relies on the suggestion that these are only a few of the theoretically possible structures that, because of an iterative pattern of development, are available to nature.
+This iterative pattern is elegantly visualised using L-Systems.
+The authors introduce the idea of a meristematic continuum that gives rise to shoots at one end, and flowers at the other.
+In a generalising leap, the authors state this continuum can be characterised by an abstract variable, \emph{veg}, which declines with age.
+High levels of this correspond to shoot meristems and low levels to floral meristems.
+It is shown that if \emph{veg} decline is uniform across all meristems a panicle is the result.
+This is as far as this model will go, so the authors provide further extensions to make the model account for the other main inflorescence architectures.
+\emph{LFY} and \emph{TFL1} are introduced into their model because mutants in these genes have different phenotypic effects in Arabidopsis.
+Modelled architectures of mutant and transgenic \emph{LFY} and \emph{TFL1} phenotypes are shown and said to agree with experimental data although photographs of real plants are not included but can be found elsewhere~\cite{ratcliffe1998,ratcliffe1999}.
+The authors also discuss the potential evolutionary origins of floral phenotypes.
+It is interesting that, because not all meristems flower at the same time, racemes and cymes may have evolved to have higher fitness than panicles in a variable growth season.
+Hence panicles are shown to be relatively more frequent in the tropics.
+An explanation is also offered that could explain the existence of only these particular architectures.
+By using layers of 2D fitness landscapes to build a 3D fitness space, the authors capture relationships between architectures and season duration/plant longevity to show that the angiosperms are only likely to have evolved along high fitness paths that connect racemes, panicles and cymes.
+The level of abstraction in this work requires further validation to elucidate the biology behind the \emph{veg} factor\sidenote{\emph{Perhaps the micro-RNA miR-156 as mentioned in \autoref{sec:ftGenetics} can be considered a candidate as it decreases as the plant ages.}} yet it is an interesting attempt at explaining the evolution and development of diverse inflorescence architectures.
+
+The intuitively simple ABC model (\autoref{fig:ABC}) has stimulated great interest from modellers who naturally wish to provide a more quantitative understanding of the molecular interactions.
+Two particular studies require detailed comment.
+
+First is a discrete model with logical rules described by Espinosa-Soto and coworkers~\cite{espinosa2004}.
+After an exhaustive literature search for genetic interactions the authors are able to define a genetic regulatory network of 15 genes involved in cell fate determination.
+Some connections are hypothesised to ensure the correct expression patterns are recovered.
+Experiments testing these interactions could therefore provide validation or otherwise of the network structure.
+Eight genes are Boolean (on or off) in their expression level, but the remaining seven can have an off level, an intermediate level or a full level of activity.
+The logical rules are therefore based on observed experimental results and in total the network has $2^8 \times 3^7 = 139968$ possible initial conditions.
+From all these initial conditions the network has only 10 steady states which nicely correspond to the organ types in the apex and the inflorescence meristem where \emph{TFL1} is high but no activity of floral marker genes such as \emph{LFY} or \emph{AP1}.
+The basins of attraction for the reproductive organs are shown to be far larger than the perianth organs suggesting their fates are less unstable, possibly because they are more important (thus under natural selection), evolutionarily older (gymnosperms have no perianth organs), or both.
+The final cell types are dependent on the network architecture not the logical rules for each gene as shown by small random changes to the rules.
+Espinosa-Soto et al. also simulate mutations in the selected genes which recover mutant phenotypes.
+For example the steady states in the B class \emph{AP3} knockout mutant corresponded to only inflorescences, sepals or carpels and are in absence of petals and stamens as known experimentally~\cite{coen1991,jack1992}.
+The approach can also be applied to petunia.
+The advantages of the logical framework adopted by this paper are that there are no parameters to infer and to a first approximation it likely reflects very well the underlying genetic behaviour.
+
+Second, an ODE model of interacting MADS-box transcription factors controlling floral organ identity was developed by van Mourik and colleagues~\cite{vanmourik2010}.
+The model is based on the demonstration that MADS proteins can form dimers or higher order complexes~\cite{honma2001}, and this is therefore explicitly included in their model.
+Redundant genes are assumed to have similar interactions or expression patterns and each system variable is thus representing more than one gene of each class.
+Triggers are incorporated to drive the system into one of four steady states: sepals, petals, stamens or carpels.
+In total there are 37 parameters which are optimised by a gradient-based search method.
+The authors change microarray data from the literature in to a format substituting for whorl-specific protein concentrations which can then be optimised against to determine the model parameters.
+The fit to the experimental data is reasonable but importantly the model is validated by comparing MADS protein mutants to known phenotypes from the literature.
+This validation method showed four out of five mutants to be correctly predicted and for the remaining mutant, ectopic AP3 expression, to be half right.
+Finally the authors remove certain dimers from the network to predict organ mutations.
+As one example, the removal of the SEP dimer predicts ``no development of floral organs'', and Ditta et al.~\cite{ditta2004} have found that the quadruple \emph{sep1 sep2 sep3 sep4} mutant formed leaf-like organs in place of flowers.
+Thus this model has captured some of the kinetics of MADS-domain protein dimerisation leading to floral organ specification in Arabidopsis which had never been done before.
+Additionally as a time-dependent system it gives more dynamic information about the variables than the discrete approach taken elsewhere~\cite{espinosa2004}.
+Furthermore, in a boon to minimal modellers everywhere, a recent follow-up study suggested that the original network could be reduced in its complexity whilst still accounting for the system behaviour under mutant conditions~\cite{apri2014}.
+
+In combination these two works have taken different approaches to provide a quantitative understanding of the qualitative ABC model.
+Both routes are valid and with sensible assumptions and simplifications can predict phenotypes unknown to the models.
+The ability to also suggest interactions and phenotypes that are untested in the literature gives weight to the involvement of mathematical modelling studies in biology.
+A discrete approach loses dynamic resolution but has no need for computationally expensive parameter searches.
+Therefore deriving a network architecture and testing it for coherence before applying a higher level of dynamic modelling may avoid wasted time and effort on an incorrect model~\cite{espinosa2004}.
+
+\subsection{Summary}
+Complex traits are rarely transferable between species, yet genes are frequently highly similar (homologous) and likely to carry out the same functions, motivating gene models.
+It is often general genetic motifs that are most conserved between species.
+Thus the knowledge of the workings of one motif in a species is likely applicable to another species.
+Our increasing understanding of gene networks coupled with QTL analysis allows drilling down to individual genes or even single nucleotide polymorphisms (SNPs).
+Hence transferable gene-level models that cross scales and integrate up to the environment level are within grasp. 
+
+In order to make this approach tractable, many factors are excluded from such GRN based models that are relevant to those with a more agricultural interest. 
+Modelling such large genetic regulatory networks is a complex task as even if all components are known---to perform kinetic measurements for quantities such as binding constants is rarely experimentally feasible.
+The limited knowledge of component concentrations and kinetic interactions results in a mathematically highly underdetermined problem.
+This means that the available data is not sufficient to uniquely determine the parameters in the model.
+
+Although as we have seen in the literature different approaches exist for simplifying the parameterisation of the model, e.g. Boolean networks or neural networks, these do not allow so much for a dynamic analysis of a mechanistic model with kinetic parameters having a biological meaning.
+Thus the focus on differential equation-based systems allows the dynamic system of interacting components to be tracked and can provide a more detailed understanding of the processes involved.
+Unfortunately this avenue can require many parameters that have to be constrained by available experimental data to some degree.
+In the next section we cover methods for parameter estimation and discuss how using Bayesian inference allows us to quantify the uncertainty in our model's parameters.
+
+\section{Parameter estimation}
+The scarcity of large quantities of high quality and detailed mechanistic data is a common problem faced by computational biologists seeking to model an experimental system.
+In all but the simplest cases a challenge to the mathematical modeller is the choice of a useful parameterisation of the problem and, often in discussion with experimentalists, devising ways of obtaining reasonable estimates for the parameters of the system.
+Depending on the method, these parameters may be inherent to a machine learning approach, so-called black box parameters, and of little interest to the biologist or for mechanistic models they may actually correspond to biological entities such as concentrations, dissociation constants or degradation rates that may be used for validation purposes and the design of further experiments.
+In this thesis the focus is on dynamic mechanistic modelling for which the parameters themselves are of interest and not merely a means to an end.
+Many mechanistic modelling studies in biology have employed ODEs as the mathematical framework of choice~\cite{alon2006,vanmourik2010,song2012,murray2013}.
+The reasons for this include the natural way that many biological problems can be posed as the study of the behaviour of a dynamic system of interacting components over time and the well-established numerical routines for solving such systems~\cite{sundials2005}.
+For instance, converting a genetic regulatory network into a mathematical formalism can be achieved using established enzyme kinetics and following standard conventions~\cite{alon2006}.
+This approach gives rise to a mechanistic model with (in principle) measurable, kinetic parameters.
+Unfortunately, however, these parameters are often unknown experimentally, or determined under \emph{in vitro} conditions for analogous systems, and so have to be estimated from available data.
+This is a major hurdle that has received a lot of attention from systems biologists~\cite{mendes1998,moles2003,ashyraliyev2009}.
+
+A common approach is to use optimisation algorithms to find the best fit to the data~\cite{banga2008,ashyraliyev2009,dalchau2012}.
+Local optimisation is very well established and numerous high-performance computing software tools are available, often based around variants of Newton's method.
+Nevertheless the non-linearity of biological systems can lead to multimodal fitness landscapes~\cite{calderhead2009} that require global optimisation techniques~\cite{floudas2009,moles2003,mendes1998} to avoid getting trapped in local minima.
+
+Global optimisation however remains a challenge.
+Despite a number of very powerful, modern techniques such as: simulated annealing~\cite{kirkpatrick1983}, particle swarm~\cite{schwaab2008}, Kalman filters~\cite{lillacci2010, quach2007}, Bayesian approaches~\cite{toni2009,granqvist2011}, genetic algorithms~\cite{forrest1993} and, aptly-named for plant research, invasive weed optimisation~\cite{mehrabian2006}, finding a global optimum can rarely be guaranteed in practice and in finite time.
+Furthermore, it has been noted that the global minimum may not result in biologically realistic parameters~\cite{slezak2010}.
+
+These methods can be motivated by invoking maximum likelihood arguments.
+A known problem with maximum likelihood and, in general, optimisation approaches is that without further precautions they can lead to the overfitting of a model to the data, i.e.~the parameters are far more sharply defined than is justified from the information content of the data~\cite{hawkins2004}.
+These are well-documented problems with established solutions such as Bayesian methodology and information theory-based corrective terms to the maximum likelihood value such as the Akaike information criterion (AIC)~\cite{akaike1973,akaike1974}.
+A short review of these approaches applicable to systems biology is given by Kirk et al.~\cite{kirk2013}.
+Another issue is that the best-fit set of parameters to a model may not be representative of parameter space~\cite{mackay2003}.
+An optimisation algorithm may miss important solutions or contributions from other parts of parameter space.
+Furthermore, it has been shown that in systems biology that not all parameters are uniquely identifiable~\cite{erguler2011}.
+There are issues of sloppiness and correlations between parameters~\cite{gutenkunst2007,erguler2011}.
+Parameters have also been found to behave differently between corresponding deterministic and stochastic systems~\cite{komorowski2011}.
+
+These issues affect reverse-engineering, which attempts to infer networks, functions and other regulatory mechanisms causing a system's output.
+Thus when parameters are non-identifiable or show non-linear dependencies this can cause difficulties in understanding the real system from a mathematical model of the system.
+For some biological systems noisy and sparse data can bring further headaches when attempting to recover system behaviour.
+Accurately capturing experimental data in a model therefore suffers from structural and practical difficulties --- both the model structure (connections, inputs and outputs) and lack of informative data could be limiting.
+With an experimental-modelling cycle, both of these will, hopefully, be at least partially addressed yet this may not be feasible due to issues of cost and time.
+Thus providing a mathematical description of a system that ensures parsimony and accuracy can be a challenge.
+A comprehensive review of reverse-engineering from different perspectives has recently been written by Villaverde et al.\ for systems biology~\cite{villaverde2014}.
+
+The Bayesian framework~\cite{jeffreys1961,jaynes2003} is an attractive way of dealing with the issues just raised in a way that reduces the risk of over-fitting.
+As succinctly stated by Radford Neal~\cite{neal1998},
+\begin{quote}
+  \emph{``Bayesian inference is an approach to statistics in which all forms of uncertainty are expressed in terms of probability''.}
+\end{quote}
+The history of Bayes' theorem stretches back over 250 years to the work of the Rev.\ Thomas Bayes~\cite{bayes1763}.
+Bayes' theorem in its most introductory form is commonly presented using two sets, $A$ and $B$ (see \autoref{fig:bayesVenn}).
+The theorem follows from the definition of joint probability $\mathrm{P}(A \text{ and } B) = \mathrm{P}(A|B) \mathrm{P}(B)$ and describes the conditional probability of being in set $A$ given that an element belongs to set $B$, as such 
+\begin{equation}
+  \mathrm{P}(A|B) = \frac{\mathrm{P}(B|A) \mathrm{P}(A)}{\mathrm{P}(B)},
+  \label{eq:Bthm}
+\end{equation}
+where $\mathrm{P}(A|B)$ is the posterior probability, $\mathrm{P}(A)$ and $\mathrm{P}(B)$ are prior probabilities and $\mathrm{P}(B|A)$ is the conditional probability of $B$ given $A$.
+Bayesian inference relates to degrees of belief and provides an effective way of combining information such that new data can easily be incorporated.
+This leads to the message that ``today's posterior is tomorrow's prior''~\cite{lindley1972}.
+Importantly, the Bayesian approach is consistent in its treatment of inference problems regardless of the details of the questions being asked.
+\begin{marginfigure}[-400pt]
+  \includegraphics[width=\marginparwidth]{/home/nick/testing/tikz/bayesVenn.pdf}
+  \caption{Illustration of joint probability.
+    The probability of the intersection of two sets, A $\cap$ B, is the probability of A and B.
+    The conditional probability A given B is equal to the probability of A and B normalised by dividing by P(B).
+    As joint probability is commutative i.e. P(A $\cap$ B) = P(B $\cap$ A) \autoref{eq:Bthm} follows naturally.
+  }
+  \label{fig:bayesVenn}
+\end{marginfigure}
+
+Bayesian inference naturally encompasses Occam's razor~\cite{blumer1987occam, rasmussen2001occam} and so inherently accounts for the trade-off between the goodness of fit of a model and its simplicity~\cite{MacKay91bayesianinterpolation}.
+The Bayesian approach doesn't aim to produce a point estimate for quantities of interest but captures the full uncertainty of the problem that is reflected in the posterior probability distribution.
+In particular for non-unimodal distributions point estimates can be misleading.
+Bayesian techniques are gaining interest in numerous research areas and finding increased application in computational biology~\cite{posada2004,wilkinson2007} due to the availability of state-of-the-art developments~\cite{baldi2001,toni2009,thorne2012,calderhead2011,calderhead2009,eydgahi2013sorger}.
+Recent further advances have shown that multi-dimensional biophysical problems can be tackled successfully within the Bayesian framework; for example Markov chain Monte Carlo (MCMC) was employed for suitably approximating a prior distribution for studying the insulin secretion rate~\cite{heuett2012} and copula-based Monte Carlo sampling was used for comparing models of human zirconium processing~\cite{schmidl2012}.
+However, the computational demands for such approaches often make them prohibitive for many problems.
+A main reason for this computational effort is in the calculation of high-dimensional integrals that arise through the processes of marginalisation and normalisation in Bayesian inference~\cite{jeffreys1961,mackay2003}.
+Monte Carlo techniques are the established way to compute such integrals, however they can require many thousands of cycles to deliver adequate results and there are known issues with MCMC sample decorrelation times~\cite{lartillot2006}.
+Nested sampling~\cite{Skilling2006} (\autoref{chapter:nestedSampling}) was put forward as a Bayesian variant of this approach and was shown to perform well for simple test examples~\cite{sivia2006}.
+Recently this approach has been used with success for: astronomical data analysis~\cite{mukherjee2006, feroz2008}, exploring configurational phase space of chemical systems~\cite{partay2010}, parameter inference of a circadian clock model~\cite{aitken2013} and for one of the most challenging problems in biophysics, namely the exploration of protein folding landscapes~\cite{burkoff2012}.
+
+Having introduced the benefits of the Bayesian framework and its growing popularity amongst scientists some of the theory necessary for understanding how it works is presented next.
+
+\subsection{Bayesian parameter inference}\label{ssec:Bayes}
+For parameter inference the task is to infer the probability over the parameters, $\omega$, for the hypothesis or model, $\mathcal M$, given some data $\mathbf{D}$ from an experiment and capturing also all relevant information $I$.
+This can be done within the setting of Bayes' Theorem which can be rewritten as
+\begin{equation}
+\mathrm{P}(\omega | \mathbf{D}, \mathcal M, I) = \frac{\mathrm{P}(\mathbf{D} | \omega,\mathcal M, I) \cdot \mathrm{P}(\omega |\mathcal M, I)}{\mathrm{P}( \mathbf{D} |\mathcal M, I)},
+\label{eq:BayesParam}
+\end{equation}
+where $\mathrm{P}(\omega | \mathbf{D},\mathcal M, I)$ is the \emph{posterior} probability, $\mathrm{P}(\mathbf{D} | \omega,\mathcal M, I)$ is the \emph{likelihood}, $\mathrm{P}(\omega |\mathcal M, I)$ is the \emph{prior} probability and $\mathrm{P}( \mathbf{D} |\mathcal M, I)$ is the \emph{evidence}.
+We make use of the following shortened notation \cite{sivia2006}: $\mathcal P(\omega)$ represents the posterior, $\mathcal L(\omega)$ the likelihood, $\pi(\omega)$ the prior and $\mathcal Z$ the evidence, hence \autoref{eq:BayesParam} becomes
+\begin{equation*}
+\mathcal P(\omega) = \frac{\mathcal L(\omega) \pi(\omega)}{\mathcal Z}.
+\label{eq:Bayes2}
+\end{equation*}
+As the evidence is not a function of the parameters it does not need to be computed for parameter inference, which explains the success of MCMC methods that explore a posterior distribution proportional to the correctly normalised distribution.
+However calculating the evidence in crucial for Bayesian model comparison.
+
+\subsection{A common likelihood function}\label{sec:Introllh}
+Maximum entropy arguments lead to the assignment of a normal distribution for the errors in the data~\cite{jaynes2003}, and if the $n_{\mathbf{D}}$ data points are independent the log-likelihood function resembles a least-squares residual
+\begin{equation}
+\log\mathcal L = -\sum_{i=1}^{n_{\mathbf{D}}}\log\left(\sigma_i\sqrt{2\pi}\right) - \sum_{i=1}^{n_{\mathbf{D}}} \frac{\left({{{d}}_i}-{{y}}_i\right)^2}{2\sigma_{i}^2}
+\label{eq:logllh}
+\end{equation}
+where ${{d}}_i$ is the given data at point $i$, $\sigma_{i}$ its corresponding standard deviation and ${{y}}_i$ the value computed from the model at that point.
+More complex error models can be used if information is available or justified from the underlying experiment, however in this thesis \autoref{eq:logllh} is the only form of likelihood function considered.
+If the standard deviations $\sigma_{i}$ are assumed to be constant throughout the data set then the first term on the right hand side is itself constant and can be ignored for the purposes of model comparison (see below).
+
+\subsection{Bayesian model comparison}\label{ssec:BayesModComp}
+Bayes' theorem not only enables us to infer parameter distributions but also provides a framework for model comparison.
+The posterior probability of a model $\mathcal M$ is
+\begin{equation*}
+\mathrm{P}(\mathcal M | \mathbf{D}, I) = \frac{\mathrm{P}(\mathbf{D} | \mathcal M, I) \cdot \mathrm{P}(\mathcal M | I)}{\mathrm{P}( \mathbf{D} | I)}
+\text{    or    }
+\mathcal P(\mathcal M) = \frac{\mathcal Z \cdot \pi(\mathcal M)}{\mathrm{P}(\mathbf{D} | I)}.
+\end{equation*}
+To compare models we take the \emph{posterior odds} of two models, $\mathcal M_i$ and $\mathcal M_j$, by taking the ratio and cancelling the term $\mathrm{P}( \mathbf{D} | I)$.
+Thus
+\begin{equation*}
+\frac{\mathrm{P}(\mathcal M_i | \mathbf{D}, I)}{\mathrm{P}(\mathcal M_j | \mathbf{D}, I)} = \frac{\mathrm{P}(\mathbf{D} | \mathcal M_i,I) \cdot \mathrm{P}(\mathcal M_i | I)}{\mathrm{P}(\mathbf{D} | \mathcal M_j,I) \cdot \mathrm{P}(\mathcal M_j | I)}
+\text{    or    }
+\frac{\mathcal P(\mathcal M_i)}{\mathcal P(\mathcal M_j)} = \frac{\mathcal Z_i \cdot \pi(\mathcal M_i)}{\mathcal Z_j \cdot \pi(\mathcal M_j)}.%In thesis put a \! after the j
+\end{equation*}
+If we have no prior preference for either model, i.e. $\pi(\mathcal M_i) = \pi(\mathcal M_j)$, then these terms cancel out and the models are compared according to their respective evidences, which is identical to the normalisation constant in \autoref{eq:BayesParam}.
+This ratio of evidences is called the \emph{Bayes factor}~\cite{jeffreys1961,kass1995},
+\begin{equation*}
+\mathcal B_{ij} = \frac{\mathrm{P}(\mathbf{D} | \mathcal M_i, I)}{\mathrm{P}(\mathbf{D} | \mathcal M_j,I)} = \frac{\mathcal Z_i}{\mathcal Z_j}.
+\end{equation*}
+Thus the evidence $\mathcal Z$ is the key quantity that can be
+computed by marginalising the likelihood $\mathcal L(\omega)$ over
+parameter space,
+\begin{equation*}\label{Zint}
+\mathcal Z = \int\mathcal L(\omega) \pi(\omega) \diffd \omega.
+\end{equation*}
+
+The evidence embodies the so-called Occam factor~\cite{mackay2003}.
+This is a measure of the extent to which the prior parameter space collapses to the posterior space after seeing the data.
+A model with more parameters typically has a greater volume of prior parameter space, and if the data are well described by only a small region of this space it will be penalised for this extra complexity.
+So a less complex model (fewer parameters) that fits well to the data for a larger region of its parameter space would be preferred by the Bayes factor calculation~\cite{mackay2003}.
+
+\subsection{Jeffreys' scale}\label{sec:Jscale}
+A qualitative scale for the interpretation of Bayes factors was given by Jeffreys~\cite{jeffreys1961} and adapted by Kass \& Raftery~\cite{kass1995}.
+The version used in this thesis is shown in \autoref{tab:Jscale} for a Bayes factor $\mathcal B_{ij}$.
+If the log-Bayes factor is negative it can trivially be reversed to provide evidence against the competing hypothesis.
+The interpretations are based on a natural logarithm scale and due to computational issues with underflow for the magnitude of the numbers occurring in Bayesian inference the calculations are also on a logarithm scale.
+Hence the use of a log-likelihood function.
+For this reason if the first term on the right hand side of \autoref{eq:logllh} is constant taking the log-Bayes factor is simply a subtraction of the same term from both evidence values and so can be safely ignored, which is the case in most examples within this thesis.
+\begin{table}[t!h]
+  \centering
+  \begin{tabular}{cc}
+    \toprule
+    $2\ln\mathcal B_{ij}$ & Evidence against $\mathcal M_j$\\
+    \midrule
+    $0\text{--}2$ & Hardly worth mentioning\\
+    $2\text{--}6$ & Has some substance\\
+    $6\text{--}10$ & Strong\\
+    $> 10$ & Very strong\\
+    \bottomrule
+  \end{tabular}
+  \caption{Jeffreys' scale for interpreting Bayes factors.
+    Jeffreys~\cite{jeffreys1961} provided a grading of decisiveness of evidence to support or reject a hypothesis, $\mathcal M_j$.
+    This scale was slightly adapted by Kass \& Raftery~\cite{kass1995} in their classic paper.
+    It should be noted that in contrast to null hypothesis significance testing (reject/fail to reject the null) the Bayes factor provides the ability to reject or accept either the null or alternative hypothesis.
+  }
+  \label{tab:Jscale}
+\end{table}
